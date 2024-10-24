@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Report an Issue</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1D3124;
+            color: #000;
+        }
+        .navbar {
+            background-color: #f6f4e8;
+            border-color: black;
+            font-size: large;
+            font-weight: 500;
+        }
+        .navbar-brand, .nav-link {
+            color: black !important;
+        }
+        .nav-link:hover {
+            color: black !important;
+            background-color: gray;
+            border-radius: 10px;
+        }
+        .navbar-nav {
+            margin: 0 auto;
+        }
+        .nav-item {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+        .form-container {
+            margin: 50px auto;
+            padding: 40px;
+            background-color: #f6f4e8;
+            border-radius: 10px;
+            max-width: 600px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-control {
+            background-color: white;
+            border-color: black;
+            border-radius: 20px;
+        }
+        .btn {
+            border-radius: 20px;
+            background-color: #151F1E;
+            color: white;
+            border-color: black;
+        }
+        .btn:active {
+            background-color: gray !important;
+            border-color: black !important;
+        }
+        .btn:hover {
+            background-color: gray;
+            border-color: black;
+        }
+        /* Style for report table */
+        .report-table-container {
+            margin: 50px auto;
+            background-color: #f6f4e8;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .table {
+            background-color: white;
+            border-color: black;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('rider_homepage') }}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('current_tripRider') }}">Current Trip</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_availabletrips') }}">Find Trips</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_profile') }}">Profile</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_history') }}">History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_reportissue') }}">Report Issue</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_feedback') }}">Feedback</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <!-- Report Form -->
+        <div class="form-container">
+            <h2 class="text-center mb-4">Report an Issue</h2>
+            <form action="{{ url_for('rider_reportissue') }}" method="POST">
+                <div class="mb-4">
+                    <label for="trip" class="form-label">Select Trip</label>
+                    <select id="trip" name="trip_id" class="form-control" required>
+                        <option value="">Select Your Trip</option>
+                        {% for trip in trips %}
+                            <option value="{{ trip.TripID }}">{{ trip.From }} to {{ trip.To }} ({{ trip.Date }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="subject" class="form-label">Subject</label>
+                    <select id="subject" name="subject" class="form-control" required>
+                        <option value="">Choose The Issue Subject</option>
+                        <option value="driver_misbehavior">Driver Misbehavior</option>
+                        <option value="rider_misbehavior">Rider Misbehavior</option>
+                        <option value="payment_issue">Payment Issue</option>
+                        <option value="route_navigation_issue">Route and Navigation Issue</option>
+                        <option value="safety_concern">Safety Concern</option>
+                        <option value="booking_cancellation_issue">Booking and Cancellations</option>
+                        <option value="communication_issue">Communication Issue</option>
+                        <option value="ride_dispute">Ride Dispute</option>
+                        <option value="health_safety_protocol_violation">Health and Safety Protocol Violation</option>
+                        <option value="lost_found">Lost and Found</option>
+                        <option value="other">Other Issues</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="details" class="form-label">Details</label>
+                    <textarea id="details" name="details" class="form-control" rows="5" required></textarea>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="container mt-3">
+                            {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            </form>
+        </div>
+
+        <!-- Reports Section -->
+        <div class="report-table-container">
+            <h3 class="text-center mb-4">My Reported Issues</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Case ID</th>
+                        <th>Trip ID</th>
+                        <th>Date Reported</th>
+                        <th>Reason</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Admin Response</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if reports %}
+                        {% for report in reports %}
+                        <tr>
+                            <td>{{ report.ReportID }}</td>
+                            <td>{{ report.TripID }}</td>
+                            <td>{{ report.ReportDate.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ report.Reason }}</td>
+                            <td>{{ report.Description }}</td> 
+                            <td>{{ report.ReportStatus }}</td>
+                            <td>{{ report.AdminResponse or 'Pending' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">No reports found.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

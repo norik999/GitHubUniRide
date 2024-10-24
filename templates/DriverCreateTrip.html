@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Trip</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            background-color: #1D3124;
+            color: #f6f4e8;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-color: black;
+        }
+
+        .card {
+            background-color: #f6f4e8;
+            width: 90vw;
+            max-width: 1500px; 
+            height: 900px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-color: black;
+        }
+
+        .form-label, .form-select, .form-control {
+            color: #1D3124;
+            border-color: black;
+        }
+
+        .btn-primary {
+            background-color: #1D3124;
+            border-color: black;
+        }
+
+        .btn-secondary {
+            background-color: #1D3124;
+            border-color: black;
+        }
+
+        .btn-primary:hover,
+        .btn-secondary:hover {
+            background-color: gray;
+            color: #f6f4e8;
+            border-color: black;
+        }
+
+        .btn-primary:active,
+        .btn-secondary:active {
+            background-color: gray !important; /* Set your desired active color */
+            color: #f6f4e8; /* Set text color if needed */
+            border-color: black !important; /* Ensure border color remains the same */
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            zoom: normal;
+        }
+        .details-preferences {
+            display: flex;
+            justify-content: space-between;
+            flex-grow: 1;
+            gap: 20px;
+        }
+
+        .trip-details, .preferences-section {
+            flex: 1;
+        }
+
+        .text-center {
+            display: flex;
+            justify-content: center;
+            gap: 20px; /* Space between buttons */
+            margin-top: auto; /* Aligns the buttons at the bottom */
+        }
+
+        .btn-primary, .btn-secondary {
+            flex: 1; /* Ensures both buttons expand equally */
+            max-width: 200px; /* Optional: set a maximum width for the buttons */
+        }
+
+    </style>
+</head>
+<body>
+    <div>
+        <div class="card">
+            <div id="map" class="mb-3"></div>
+            <!-- Dropdowns for from and to addresses -->
+            <form id="tripForm" action="{{ url_for('driver_createtrip') }}" method="POST">
+                <!-- Hidden fields for trip initiator and driver ID -->
+                <input type="hidden" name="trip_initiator_id" value="{{ session['id'] }}">
+                <input type="hidden" name="driver_id" id="driver_id" value="{{ driver_id if driver_id is not none else ''}}">            
+    
+                <div class="details-preferences">
+                    <!-- Trip Details Section -->
+                    <div class="trip-details">
+                        <h6>Trip Details</h6>
+                        <div class="mb-3">
+                            <label for="from" class="form-label">From:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="from" name="from" required>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="fromAddressDropdown"></ul>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="to" class="form-label">To:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="to" name="to" required>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="toAddressDropdown"></ul>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tripPassengers" class="form-label">Avaliable Seats:</label>
+                            <input type="number" class="form-control" id="tripPassengers" name="tripPassengers" min="1" max="4">
+                        </div>
+                        <div class="mb-3">
+                            <label for="tripPickUpTime" class="form-label">Pick Up Time:</label>
+                            <input type="time" class="form-control" id="tripPickUpTime" name="tripPickUpTime" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="date" class="form-label">Date:</label>
+                            <input type="date" class="form-control" id="date" name="date" required>
+                        </div>
+                        <!--<div class="mb-3">
+                            <label for="tripFare" class="form-label">Fare ($):</label>
+                            <input type="text" class="form-control" id="fare" name="fare" readonly>
+                        </div>-->
+                    </div>
+
+                    <!-- Preferences Section -->
+                    <div id="preferencesSection" class="preferences-section" style="display: none;">
+                        <h6>Preferences</h6>
+                        <div class="mb-3">
+                            <label for="passengersGender" class="form-label">Passenger's Gender:</label>
+                            <select class="form-select" id="passengersGender" name="passengersGender">
+                                <option value="Any" {% if preferences and preferences.PassengerGender == 'Any' %} selected {% endif %}>Any</option>
+                                <option value="Male" {% if preferences and preferences.PassengerGender == 'Male' %} selected {% endif %}>Male</option>
+                                <option value="Female" {% if preferences and preferences.PassengerGender == 'Female' %} selected {% endif %}>Female</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="passengersAge" class="form-label">Passenger's Age:</label>
+                            <select class="form-select" id="passengersAge" name="passengersAge"> <!-- Corrected name attribute -->
+                                <option value="Any" {% if preferences and preferences.PassengerAge == 'Any' %} selected {% endif %}>Any</option>
+                                <option value="18-25" {% if preferences and preferences.PassengerAge == '18-25' %} selected {% endif %}>18-25</option>
+                                <option value="26-35" {% if preferences and preferences.PassengerAge == '26-35' %} selected {% endif %}>26-35</option>
+                                <option value="36-45" {% if preferences and preferences.PassengerAge == '36-45' %} selected {% endif %}>36-45</option>
+                                <option value="45+" {% if preferences and preferences.PassengerAge == '45+' %} selected {% endif %}>45+</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pets" class="form-label">Pets:</label>
+                            <select class="form-select" id="pets" name="pets">
+                                <option value="No" {% if preferences and preferences.Pets == 'No' %} selected {% endif %}>No</option>
+                                <option value="Yes" {% if preferences and preferences.Pets == 'Yes' %} selected {% endif %}>Yes</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="studentStaff" class="form-label">Student/Staff:</label>
+                            <select class="form-select" id="studentStaff" name="studentStaff">
+                                <option value="Any" {% if preferences and preferences.UserType == 'Any' %} selected {% endif %}>Any</option>
+                                <option value="Student" {% if preferences and preferences.UserType == 'Student' %} selected {% endif %}>Student</option>
+                                <option value="Staff" {% if preferences and preferences.UserType == 'Staff' %} selected {% endif %}>Staff</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary">Create Trip</button>
+                    <button type="button" id="togglePreferences" class="btn btn-secondary">Show Preferences</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='/driver-dashboard'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3Y6LGHnNOIDBB8PBzzRaJySHjp_UPSiI&libraries=places"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Define the togglePreferences function
+            function togglePreferences() {
+                var preferencesSection = document.getElementById("preferencesSection");
+                var toggleButton = document.getElementById("togglePreferences");
+
+                if (preferencesSection.style.display === "none") {
+                    preferencesSection.style.display = "block";
+                    toggleButton.textContent = "Hide Preferences";
+                } else {
+                    preferencesSection.style.display = "none";
+                    toggleButton.textContent = "Show Preferences";
+                }
+            }
+
+            // Add event listener to the button
+            document.getElementById('togglePreferences').addEventListener('click', togglePreferences);
+        });
+
+        var map;
+        var directionsService = new google.maps.DirectionsService();
+        var directionsRenderer = new google.maps.DirectionsRenderer();
+
+        function initMap() {
+            var singapore = { lat: 1.3521, lng: 103.8198 };
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: singapore,
+                zoom: 10
+            });
+            directionsRenderer.setMap(map);
+
+            var fromInput = document.getElementById('from');
+            var fromAutocomplete = new google.maps.places.Autocomplete(fromInput,{
+                componentRestrictions: {'country': ['SG']}
+            });
+
+            var toInput = document.getElementById('to');
+            var toAutocomplete = new google.maps.places.Autocomplete(toInput,{
+                componentRestrictions: {'country': ['SG']}
+            });
+        }
+        /*function calculateRoute(){
+            var from = document.getElementById('from').value;
+            var to = document.getElementById('to').value;
+
+            if (!from || !to) {
+                alert("Please choose both FROM and TO locations.");
+                return;
+            }
+
+            var request = {
+                origin: from,
+                destination: to,
+                travelMode: 'DRIVING',
+            };
+
+            directionsService.route(request, function (result, status) {
+                if (status === google.maps.DirectionsStatus.OK) {
+                    directionsRenderer.setDirections(result);
+
+                    var distance = result.routes[0].legs[0].distance.value;
+                    var fare = calculateFare(distance);
+                    document.getElementById("fare").value = fare.toFixed(2);
+                } else{
+                    alert("Request Failed " + status);
+                }
+            });
+        }
+        function calculateFare(distance) {
+            var fare = 3; 
+            var farePerKm = 1.2; 
+            var distanceInKm = distance / 1000;
+            return fare + (distanceInKm * farePerKm);
+        }*/
+        google.maps.event.addDomListener(window, 'load', initMap);
+    </script>
+    </body>
+</html>

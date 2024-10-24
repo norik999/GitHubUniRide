@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Landing Page</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background-image: url("{{ url_for('static', filename='city.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: white;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            background-color: #f6f4e8;
+            font-size: large;
+            font-weight: 500;
+        }
+
+        .navbar-brand, .nav-link {
+            color: black !important;
+        }
+
+        .nav-link:hover {
+            color: black !important;
+            background-color: gray;
+            border-radius: 10px;
+        }
+
+        .navbar-nav {
+            margin-left: auto;
+        }
+
+        /* Image styles */
+        .landing-image {
+            margin-top: 20px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 80%;
+            display: block;
+            border-radius: 10px;
+        }
+
+        /* Styling the main title and description */
+        .landing-info {
+            text-align: center;
+            margin-top: 30px;
+            padding: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        .landing-info h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .landing-info p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            width: 70%;
+            margin: 0 auto;
+        }
+
+        /* Testimonial Styles */
+        .testimonial-section {
+            margin-top: 30px;
+            text-align: center;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 50px;
+            background-color: rgba(0, 0, 0, 0.5); /* Background for testimonials */
+            border-radius: 10px;
+        }
+
+        .testimonial-card {
+            background-color: #F5F5F5;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        .testimonial-header {
+            display: flex;
+            align-items: center;
+        }
+
+        .testimonial-header div {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .testimonial-header img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .testimonial-content {
+            text-align: left;
+            margin-top: 10px;
+        }
+
+        .testimonial-date {
+            text-align: right;
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        .fa-star {
+            font-size: 1.5rem;
+            color: #D3D3D3;
+        }
+
+        .checked {
+            color: #FFD700;
+        }
+
+        /* Section Styles with alternating image and text layout */
+        .about-section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center; /* Centering the container */
+            margin: 50px 0;
+            position: relative;
+        }
+
+        .about-section img {
+            max-width: 45%;
+            border-radius: 10px;
+        }
+
+        .about-section-content {
+            max-width: 50%;
+            color: white;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .about-section-content h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .about-section-content p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+        }
+
+        /* Alternate layout with text on left and image on right */
+        .reverse {
+            flex-direction: row-reverse;
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            margin-top: 50px;
+            padding: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        .faq-header {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+        }
+
+        .accordion-button {
+            background-color: #f6f4e8;
+            color: black;
+        }
+
+        .accordion-button:focus {
+            box-shadow: none;
+        }
+
+        /* Footer Styles */
+        .footer {
+            background-color: #f6f4e8;
+            padding: 20px 0;
+            text-align: center;
+            margin-top: 50px;
+            color: black;
+        }
+
+        .footer-icons {
+            margin: 10px 0;
+        }
+
+        .footer-icons a {
+            color: black;
+            margin: 0 15px;
+            font-size: 1.5rem;
+        }
+
+        .footer-icons a:hover {
+            color: #FFD700;
+        }
+
+        .footer p {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('landing_page') }}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Updated Basic information about UniRide -->
+    <div class="landing-info mt-5">
+        <h1>Welcome to UniRide Carpooling Services</h1>
+        <img src="{{ url_for('static', filename='image.jpg') }}" alt="UniRide Image" class="landing-image">
+    </div>
+
+    <!-- Testimonials Section (now directly after the first image) -->
+    <div id="testimonialCarousel" class="carousel slide testimonial-section mt-5 mb-5" data-bs-ride="carousel">
+        <h2 class="text-center">Users Testimonials</h2>
+        <div class="carousel-inner">
+            
+        {% for testimonial in testimonials %}
+            {% if loop.index % 2 == 1 %}
+            <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
+                <div class="row">
+            {% endif %}
+            
+                <div class="col-md-6">
+                    <div class="testimonial-card">
+                        <div class="testimonial-header" style="display: flex; align-items: center;">
+                            <img src="{{ testimonial['UserPhoto'] }}" alt="{{ testimonial['FullName'] }}'s photo" class="img-fluid rounded-circle" style="width: 50px; height: 50px; margin-right: 10px;">
+                            
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
+                                <h5 style="margin: 0;">{{ testimonial['FullName'] }}</h5>
+                                <small style="margin: 0;">{{ testimonial['AccountType'] }}</small>
+                            </div>
+                            
+                            <!-- Star Rating Section -->
+                            <div style="display: flex; margin-left: auto; align-items: center;">
+                                <div style="display: flex; flex-direction: row; gap: 5px;">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= testimonial['Rating'] %}
+                                            <span class="fa fa-star checked"></span>
+                                        {% else %}
+                                            <span class="fa fa-star"></span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="testimonial-content">
+                            <p><strong>Subject:</strong> 
+                                {% if testimonial['FeedbackSubject'] == "Others" %}
+                                    {{ testimonial['FeedbackSubject'] }} ({{ testimonial['OtherSubject'] }})
+                                {% else %}
+                                    {{ testimonial['FeedbackSubject'] }}
+                                {% endif %}
+                            </p>
+                            <p><strong>Feedback:</strong> {{ testimonial['FeedbackText'] }}</p>
+                        </div>
+                        
+                        <div class="testimonial-date" style="text-align: right;">
+                            <p>{{ testimonial['FeedbackDate'] }}</p>
+                        </div>
+                    </div>
+                </div>
+
+            {% if loop.index % 2 == 0 or loop.index == loop.length %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+        
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+        </button>
+    </div>
+
+    <!-- About Us Section with alternating layout inside a container -->
+    <div class="container mt-5 mb-5">
+        <div class="about-section">
+            <img src="static/aboutus.jpg" alt="About Us Image">
+            <div class="about-section-content">
+                <h1>About Us</h1>
+                <p class="subheading">Who We Are</p>
+                <p class="main-content">We are a group of final-year students from the University of Wollongong who are passionate about solving real-world problems through innovation. 
+                Our carpooling platform, UniRide, was developed as a sustainable solution to the challenges of daily commuting, with a focus on connecting university students and staff. 
+                <br><br>
+                By facilitating shared rides, UniRide helps reduce traffic congestion and cut down transportation costs, all while fostering a more eco-conscious community.</p>
+            </div>
+        </div>
+
+        <div class="about-section reverse">
+            <img src="static/mission.jpeg" alt="Our Mission Image">
+            <div class="about-section-content">
+                <h1>Our Mission</h1>
+                <p class="subheading">Greener Commutes, Stronger Connections</p>
+                <p class="main-content">Our mission is to pave the way for a greener future by revolutionizing the way students and staff commute. We aim to minimize our environmental footprint by promoting carpooling as an accessible, 
+                eco-friendly alternative to traditional transportation methods. 
+                <br><br>
+                Through UniRide, we strive to make sustainable commuting not only practical but also enjoyable, building connections within our university community 
+                while championing environmental responsibility.</p>
+            </div>
+        </div>
+
+        <div class="about-section">
+            <img src="{{ url_for('static', filename='environment.jpg') }}" alt="Environmental Impact Image">
+            <div class="about-section-content">
+                <h1>Environmental Impact</h1>
+                <p class="subheading">Join us in making a difference</p><br>
+                <p class="main-content">We believe that small actions can lead to significant change. Through UniRide, we aim to reduce greenhouse gas emissions and minimize 
+                    the environmental footprint of our daily commutes. Every shared ride contributes to cleaner air, fewer vehicles on the road, and a greener future.</p>
+            </div>
+        </div>
+
+        <div class="about-section reverse">
+            <img src="{{ url_for('static', filename='save.jpg') }}" alt="Cost Savings Image">
+            <div class="about-section-content">
+                <h1>Cost Savings</h1>
+                <p class="subheading">Save while you ride</p><br>
+                <p class="main-content">With UniRide, you not only contribute to a sustainable environment but also enjoy financial benefits. Carpooling allows drivers to share costs, 
+                reducing fuel expenses and making commuting more budget-friendly. Riders also benefit from affordable rides, ensuring that everyone saves money on their journey.</p>
+            </div>
+        </div>
+
+        <div class="about-section">
+            <img src="{{ url_for('static', filename='accessibility.jpg') }}" alt="Affordability and Accessibility Image">
+            <div class="about-section-content">
+                <h1>Affordability and Accessibility</h1>
+                <p class="subheading">Connecting communities through affordable transportation</p><br>
+                <p class="main-content">UniRide is designed to bring drivers and riders together, offering a cost-effective commuting solution for university students and staff. 
+                We strive to make transportation accessible to all, providing an easy-to-use platform that ensures everyone can travel comfortably and affordably.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Accordion Section -->
+    <div class="container faq-section mt-5">
+        <h1 class="faq-header">Frequently Asked Questions</h1>
+        <div class="accordion" id="faqAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                        What is UniRide?
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        UniRide is a carpooling service designed for university students and staff to reduce costs and help the environment.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        How do I become a UniRide rider/driver?
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        Becoming a UniRide rider/driver is easy. Register with your student/staff credentials and submit your vehicle details(drivers only) for approval.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingThree">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                        What are the benefits of carpooling with UniRide?
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        Carpooling with UniRide helps you save money, reduce your carbon footprint, and make new friends along the way!
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingFour">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                        What makes UniRide stand out from other carpooling services?
+                    </button>
+                </h2>
+                <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        UniRide offers customization & personalization such as Cross-Border carpooling and Women-only rides. It is built specifically for students and staff, offering an eco-friendly and cost-effective solution with a strong community focus.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingFive">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                        Is UniRide available outside of the university?
+                    </button>
+                </h2>
+                <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        Currently, UniRide is designed exclusively for students and staff, but we are exploring the possibility of expanding to the broader community.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingSix">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+                        How much does it cost to use UniRide?
+                    </button>
+                </h2>
+                <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        UniRide is free for students and staff. Ride costs are determined by the drivers and it is definitely cheaper than other alternatives.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingSeven">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" aria-expanded="false" aria-controls="collapseSeven">
+                        What safety measures does UniRide have?
+                    </button>
+                </h2>
+                <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        UniRide verifies students and staff credentials. We also provide driver and rider reviews to ensure a safe and trusted community.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingEight">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight" aria-expanded="false" aria-controls="collapseEight">
+                        Why is my account disabled?
+                    </button>
+                </h2>
+                <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        UniRide maintains high service standards for its users and failing to meet these standards could lead to a temporary suspension on the user's account.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingNine">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNine" aria-expanded="false" aria-controls="collapseNine">
+                        How do I contact UniRide?
+                    </button>
+                </h2>
+                <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        You can contact UniRide by clicking on 'Contact Us' on the navigation bar. We will respond within 2 working days.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTen">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTen" aria-expanded="false" aria-controls="collapseTen">
+                        I lost my item
+                    </button>
+                </h2>
+                <div id="collapseTen" class="accordion-collapse collapse" aria-labelledby="headingTen" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        We are sorry to hear that you have lost your item and understand you maybe distressed about this. You can contact your driver directly if your trip ended not less than 24 hours ago, else you can call us at +65 6655 5566.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="footer">
+        <div class="footer-icons">
+            <a href="https://www.facebook.com/login" target="_blank"><i class="fab fa-facebook"></i></a>
+            <a href="https://www.instagram.com/accounts/login/" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.twitter.com/login" target="_blank"><i class="fab fa-twitter"></i></a>
+            <a href="https://www.linkedin.com/login" target="_blank"><i class="fab fa-linkedin"></i></a>
+        </div>
+        <p>Follow us on social media for updates!</p>
+        <p>&copy; 2024 UniRide. All Rights Reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

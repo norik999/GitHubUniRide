@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Driver Trip History</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1D3124;
+        }
+
+        .navbar {
+            background-color: #f6f4e8;
+            border-color: black;
+            font-size: large;
+            font-weight: 500;
+        }
+        .navbar-brand,
+        .nav-link {
+            color: black !important;
+        }
+        .nav-link:hover {
+            color: black !important;
+            background-color: gray;
+            border-radius: 10px;
+        }
+        .navbar-nav {
+            margin: 0 auto;
+        }
+        .nav-item {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        h2 {
+            color: #f6f4e8;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .table {
+            margin-top: 20px;
+            background-color: #f6f4e8;
+            border-color: black;
+            color: black;
+        }
+
+        .table td {
+            text-align: center;
+        }
+
+        .table th {
+            border-color: black;
+            color: black;
+            background-color: #f6f4e8;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .table tbody tr.selected {
+            background-color: #f0f0f0 !important;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .btn-group .btn {
+            width: 150px;
+            border-color: black;
+            background-color: #f6f4e8;
+            color: black;
+            font-weight: bold;
+        }
+
+        .btn-group .btn:hover {
+            background-color: gray;
+            color: white;
+        }
+        .modal-content {
+            background-color: #f6f4e8; /* Change to your desired color */
+            color: black; /* Change text color if needed */
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('driver_homepage')}}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_dashboard')}}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('current_tripDriver') }}">Current Trip</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_triprequest') }}">Trip Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_profile')}}">Profile</a>
+                    </li>
+                    <!--<li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_savedaddresses') }}">Saved Addresses</a>
+                    </li>-->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_history')}}">History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_reportissue')}}">Report Issue</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_feedback') }}">Feedback</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout')}}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2 class="text-center">Completed Trips History</h2>
+
+        <div class="btn-group d-flex justify-content-center">
+            <button type="button" class="btn btn-primary" id="toggleHistoryButton" onclick="toggleHistory()">Show History</button>
+        </div>
+        <div class="table-container">
+            <table class="table table-bordered" id="historyTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Trip ID</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Pick Up Time</th>
+                        <th>Drop Off Time</th>
+                        <th>Date</th>
+                        <th>No. of Passengers</th>
+                        <th>Fare ($)</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    {% for trip in trips %}
+                    <tr>
+                        <td>{{ trip.TripID }}</td>
+                        <td>{{ trip.From }}</td>
+                        <td>{{ trip.To }}</td>
+                        <td>{{ trip.PickUpTime }}</td>
+                        <td>{{ trip.DropOffTime }}</td>
+                        <td>{{ trip.Date }}</td>
+                        <td>{{ trip.total_passengers }}</td>
+                        <td>{{ trip.Fare }}</td>
+                        <td><button class="btn btn-secondary btn-sm" onclick="viewDetails('{{ trip.TripID }}')"> View Details</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for Trip Details -->
+    <div class="modal fade" id="tripDetailsModal" tabindex="-1" aria-labelledby="tripDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tripDetailsModalLabel">Trip Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="tripDetailsContent">
+                    <!-- Trip details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleHistory() {
+            const table = document.getElementById("historyTable");
+            const button = document.getElementById("toggleHistoryButton");
+
+            if (table.style.display === "none") {
+                table.style.display = "table";
+                button.textContent = "Hide History";
+            } else {
+                table.style.display = "none";
+                button.textContent = "Show History";
+            }
+        }
+
+        function viewDetails(tripId) {
+            // Fetch trip details based on tripId
+            fetch(`/trip-details/${tripId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const trip = data.details;
+                        const detailsContent = `
+                            <h5>Trip ID: ${trip.TripID}</h5>
+                            <p><strong>From:</strong> ${trip.From}</p>
+                            <p><strong>To:</strong> ${trip.To}</p>
+                            <p><strong>Pick Up Time:</strong> ${trip.PickUpTime}</p>
+                            <p><strong>Drop Off Time:</strong> ${trip.DropOffTime}</p>
+                            <p><strong>Date:</strong> ${trip.Date}</p>
+                            <p><strong>No. of Passengers:</strong> ${trip.total_passengers}</p>
+                            <p><strong>Fare:</strong> $${trip.Fare}</p>
+                            <p><strong>Status:</strong> ${trip.Status}</p>
+                        `;
+                        document.getElementById("tripDetailsContent").innerHTML = detailsContent;
+                        const modal = new bootstrap.Modal(document.getElementById('tripDetailsModal'));
+                        modal.show();
+                    } else {
+                        // Handle the error case
+                        alert(data.message || "An error occurred. Please try again.");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching trip details:', error);
+                    alert("An error occurred while fetching trip details.");
+                });
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
