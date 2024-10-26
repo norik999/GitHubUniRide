@@ -1372,7 +1372,7 @@ def rider_createtrip():
     riderID = rider['RiderID']  # Use the fetched RiderID
 
     # Load user preferences if they exist
-    cursor.execute("SELECT * FROM RiderPreferences WHERE RiderID = %s", (riderID,))
+    cursor.execute("SELECT * FROM riderpreferences WHERE RiderID = %s", (riderID,))
     preferences = cursor.fetchone()
 
     if request.method == "POST":
@@ -2626,7 +2626,7 @@ def driver_createtrip():
     driverID = driver['DriverID']  # Use the fetched DriverID
 
     # Load user preferences if they exist
-    cursor.execute("SELECT * FROM DriverPreferences WHERE DriverID = %s", (driverID,))
+    cursor.execute("SELECT * FROM driverpreferences WHERE DriverID = %s", (driverID,))
     preferences = cursor.fetchone()
 
     if request.method == "POST":
@@ -2661,7 +2661,7 @@ def driver_createtrip():
                     preferences['Pets'] != pets or
                     preferences['UserType'] != user_type):
                     cursor.execute('''
-                        UPDATE DriverPreferences 
+                        UPDATE driverpreferences 
                         SET PassengerGender = %s, PassengerAge = %s, Pets = %s, UserType = %s 
                         WHERE DriverID = %s
                     ''', (passengers_gender, passengers_age, pets, user_type, driverID))
@@ -2669,7 +2669,7 @@ def driver_createtrip():
                     flash("Preferences updated.", "success")
             else:
                 cursor.execute('''
-                    INSERT INTO DriverPreferences (DriverID, PassengerGender, PassengerAge, Pets, UserType)
+                    INSERT INTO driverpreferences (DriverID, PassengerGender, PassengerAge, Pets, UserType)
                     VALUES (%s, %s, %s, %s, %s)
                 ''', (driverID, passengers_gender, passengers_age, pets, user_type))
                 mysql.connection.commit()
