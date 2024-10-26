@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Available Trips</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1D3124;
+        }
+
+        .navbar {
+            background-color: #f6f4e8;
+            border-color: black;
+            font-size: large;
+            font-weight: 500;
+        }
+
+        .navbar-brand,
+        .nav-link {
+            color: black !important;
+        }
+
+        .nav-link:hover {
+            background-color: gray;
+            border-radius: 10px;
+        }
+
+        .navbar-nav {
+            margin: 0 auto;
+        }
+
+        .nav-item {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table {
+            margin-top: 20px;
+            background-color: #f6f4e8;
+            border-color: black;
+            color: black;
+        }
+
+        .table td {
+            text-align: center;
+        }
+
+        .table th {
+            border-color: black;
+            color: black;
+            background-color: #f6f4e8;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .table tbody tr.selected {
+            background-color: #f0f0f0 !important;
+        }
+
+        .btn-custom {
+            background-color: gray;
+            color: white;
+            border-color: black;
+            font-weight: bold;
+        }
+
+        .btn-custom:hover {
+            background-color: #f6f4e8;
+            color: black;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .btn-group .btn {
+            width: 150px;
+            border-color: black;
+            background-color: #f6f4e8;
+            color: black;
+            font-weight: bold;
+        }
+
+        .btn-group .btn:hover {
+            background-color: gray;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('rider_homepage') }}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('current_tripRider') }}">Current Trip</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_availabletrips') }}">Find Trips</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_profile') }}">Profile</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_history') }}">History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_reportissue') }}">Report Issue</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rider_feedback') }}">Feedback</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2 class="text-center" style="color: #f6f4e8;">Available Trips</h2>
+
+        <div class="table-container">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Pick-Up Time</th>
+                        <th>Date</th>
+                        <th>Seats Left</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if trips %}
+                        {% for trip in trips %}
+                            <tr>
+                                <td>{{ trip.From }}</td>
+                                <td>{{ trip.To }}</td>
+                                <td>{{ trip.PickUpTime }}</td>
+                                <td>{{ trip.Date }}</td>
+                                <td>{{ trip.NoOfPassengers | int - trip.current_passengers }}</td>
+                                <td>
+                                    <form action="{{ url_for('rider_availabletrips') }}" method="POST">
+                                        <input type="hidden" name="trip_id" value="{{ trip.TripID }}">
+                                        <button type="submit" class="btn btn-custom">Join Trip</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6">No available trips at the moment.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

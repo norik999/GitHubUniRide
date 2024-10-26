@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Allowed Domains</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1D3124;
+            height: 100vh;
+        }
+
+        .navbar {
+            background-color: #f6f4e8;
+            border-color: black;
+            font-size: large;
+            font-weight: 500;
+        }
+
+        .navbar-brand,
+        .nav-link {
+            color: black !important;
+        }
+
+        .nav-link:hover {
+            color: black !important;
+            background-color: gray;
+            border-radius: 10px;
+        }
+
+        .navbar-nav {
+            margin: 0 auto;
+        }
+
+        .nav-item {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+
+        .dashboard-container {
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #f6f4e8;
+            margin-top: 50px;
+            margin-bottom: 20px;
+        }
+
+        .btn-custom {
+            background-color: #1D3124;
+            border-color: black;
+            color: #f6f4e8;
+            height: 30px;
+            width: 130px;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            display: flex;
+            border-radius: 5px;
+            font-weight: normal;
+        }
+
+        .btn-custom:hover {
+            background-color: gray;
+            color: #f6f4e8;
+        }
+
+        .table-container {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .table {
+            width: 100%;
+            text-align: left;
+            table-layout: auto;
+            background-color: #f6f4e8;
+            border-color: black;
+        }
+
+        .table th {
+            background-color: #f6f4e8;
+            color: black;
+            border-color: black;
+        }
+
+        .table th,
+        .table td {
+            padding: 10px;
+            border-color: black;
+            text-align: center;
+            vertical-align: middle;
+        }
+    </style>
+
+    <script>
+        function validateDomainForm() {
+            const domainField = document.getElementById('domain_name');
+            const domainValue = domainField.value;
+
+            // Check if the domain contains '@'
+            if (domainValue.includes('@')) {
+                alert("The '@' symbol is not needed in the domain name. Please enter only the domain name, e.g., 'university.edu'.");
+                domainField.focus();
+                return false; // Prevent form submission
+            }
+
+            // Perform duplicate check with AJAX
+            checkDuplicateDomain(domainValue);
+            return false; // Prevent form submission until the AJAX request completes
+        }
+
+        function checkDuplicateDomain(domainName) {
+            fetch('/check-duplicate-domain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ domain_name: domainName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    alert('This domain is already in the allowed list.');
+                    document.getElementById('domain_name').focus();
+                } else {
+                    document.getElementById('domainForm').submit(); // If no duplicate, submit the form
+                }
+            })
+            .catch(error => {
+                console.error('Error checking domain:', error);
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_trips') }}">Trips</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_report') }}">Reports</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_domains') }}">Domains</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <h2>Manage Allowed Domains</h2>
+
+        <!-- Form to Add a New Domain -->
+        <form id="domainForm" action="{{ url_for('manage_domains') }}" method="POST" onsubmit="return validateDomainForm()">
+            <div class="row mb-3">
+                <div class="col-md-5">
+                    <input type="text" class="form-control" id="domain_name" name="domain_name"
+                        placeholder="Domain Name (e.g., university.edu)" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="organization" placeholder="Organization (e.g., University Name)">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-custom">Add Domain</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Display Allowed Domains in a Table -->
+        <div class="table-container">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Organization</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for domain in domains %}
+                    <tr>
+                        <td>{{ domain.DomainName }}</td>
+                        <td>{{ domain.Organization }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('remove_domain', domain_id=domain.DomainID) }}">
+                                <button type="submit" class="btn btn-custom">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
