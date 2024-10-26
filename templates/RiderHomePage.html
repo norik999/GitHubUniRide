@@ -109,6 +109,58 @@
         width: 100%;
     }
 }
+      /* Modal Content Styling */
+    .modal-content {
+        background-color: #f6f4e8;
+        border-radius: 12px;
+        padding: 30px;
+    }
+
+    .modal-header {
+        border-bottom: none;
+        text-align: center;
+    }
+
+    .modal-title {
+        font-size: 1.75rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #1D3124;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #1D3124;
+    }
+
+    .modal-body .mb-3 {
+        margin: 0; /* Remove all margins */
+        padding-bottom: 15px; /* Add space between fields */
+    }
+
+    .form-select {
+        border: 1px solid #1D3124;
+        color: #1D3124;
+        width: 100%; /* Ensure the dropdown stretches fully */
+        box-sizing: border-box; /* Include padding and border in width calculation */
+    }
+
+    .btn-primary {
+        background-color: #1D3124;
+        border: none;
+        padding: 10px 20px;
+        width: 100%; /* Ensure button stretches the width */
+    }
+
+    .btn-primary:hover {
+        background-color: gray;
+        color: white;
+    }
+
+    .modal-footer {
+        justify-content: center;
+    }
+
     </style>
 </head>
 
@@ -261,7 +313,6 @@
     
 
     {% if show_modal %}
-    <!-- Preferences Modal -->
     <div class="modal fade" id="preferencesModal" tabindex="-1" aria-labelledby="preferencesModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -271,7 +322,6 @@
                 </div>
                 <div class="modal-body">
                     <form method="POST" action="{{ url_for('rider_homepage') }}">
-                        <!-- Form Fields -->
                         <div class="mb-3">
                             <label for="driverGender" class="form-label">Driver's Gender</label>
                             <select class="form-select" id="driverGender" name="driverGender">
@@ -280,7 +330,50 @@
                                 <option value="Male">Male</option>
                             </select>
                         </div>
-                        <div class="modal-footer justify-content-center">
+                        <div class="mb-3">
+                            <label for="driverAge" class="form-label">Driver's Age</label>
+                            <select class="form-select" id="driverAge" name="driverAge">
+                                <option value="Any" selected>Any</option>
+                                <option value="18-25">18-25</option>
+                                <option value="26-35">26-35</option>
+                                <option value="36-45">36-45</option>
+                                <option value="45+">45+</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="passengerGender" class="form-label">Passenger's Gender</label>
+                            <select class="form-select" id="passengerGender" name="passengerGender">
+                                <option value="Any" selected>Any</option>
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="passengerAge" class="form-label">Passenger's Age</label>
+                            <select class="form-select" id="passengerAge" name="passengerAge">
+                                <option value="Any" selected>Any</option>
+                                <option value="18-25">18-25</option>
+                                <option value="26-35">26-35</option>
+                                <option value="36-45">36-45</option>
+                                <option value="45+">45+</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="studentStaff" class="form-label">Student/Staff</label>
+                            <select class="form-select" id="studentStaff" name="studentStaff">
+                                <option value="Any" selected>Any</option>
+                                <option value="Student">Student</option>
+                                <option value="Staff">Staff</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pets" class="form-label">Pets</label>
+                            <select class="form-select" id="pets" name="pets">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Preferences</button>
                         </div>
                     </form>
@@ -288,6 +381,9 @@
             </div>
         </div>
     </div>
+    
+    
+    
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
