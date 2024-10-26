@@ -1491,7 +1491,7 @@ def rider_history():
                    (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders,
                    (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
             FROM trip
-            JOIN tripriders ON trip.TripID = triptiders.TripID
+            JOIN tripriders ON trip.TripID = tripriders.TripID
             WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status = 'Completed'
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
             '''
