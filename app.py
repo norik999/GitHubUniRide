@@ -1213,7 +1213,7 @@ def rider_dashboard():
         cursor.execute('''
             SELECT trip.*, 
                    driver.FullName AS DriverName,
-                   (SELECT COUNT(*) FROM tripriders WHERE tripRiders.TripID = trip.TripID) AS current_passengers,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
             FROM trip
             JOIN tripriders ON trip.TripID = tripriders.TripID
@@ -1225,10 +1225,10 @@ def rider_dashboard():
         cursor.execute('''
             SELECT trip.*, 
                    driver.FullName AS DriverName,
-                   (SELECT COUNT(*) FROM tripriders WHERE tripRiders.TripID = trip.TripID) AS current_passengers,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
             FROM trip
-            JOIN tripriders ON trip.TripID = tripRiders.TripID
+            JOIN tripriders ON trip.TripID = tripriders.TripID
             LEFT JOIN driver ON trip.DriverID = driver.DriverID
             WHERE tripriders.RiderID = %s AND trip.Status IN ('Planned', 'Ongoing')
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
@@ -1431,7 +1431,7 @@ def rider_createtrip():
             mysql.connection.commit()
 
             # Insert TripRiders only for registered users
-            cursor.execute('INSERT INTO TripRiders (TripID, RiderID) VALUES (%s, %s)', (trip_id, riderID))
+            cursor.execute('INSERT INTO tripriders (TripID, RiderID) VALUES (%s, %s)', (trip_id, riderID))
             mysql.connection.commit()
 
             flash('Trip created successfully', 'success')
@@ -1488,7 +1488,7 @@ def rider_history():
             query_joined = '''
             SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
                    trip.NoOfPassengers, trip.GuestCount, trip.Fare, 'Joined' AS role,
-                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = trip.TripID) AS current_riders,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders,
                    (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
             FROM trip
             JOIN tripriders ON trip.TripID = triptiders.TripID
@@ -2038,8 +2038,8 @@ def driver_dashboard():
         cursor.execute('''
             SELECT rider.FullName
             FROM rider
-            JOIN tripRiders ON rider.RiderID = tripRiders.RiderID
-            WHERE tripRiders.TripID = %s
+            JOIN tripriders ON rider.RiderID = tripriders.RiderID
+            WHERE tripriders.TripID = %s
         ''', (trip['TripID'],))
         passengers = cursor.fetchall()
 
@@ -2437,7 +2437,7 @@ def driver_history():
         query = '''
         SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
                trip.NoOfPassengers, trip.GuestCount, trip.Fare, 
-               (SELECT COUNT(*) FROM tripriders WHERE TripRiders.TripID = trip.TripID) AS current_riders
+               (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders
         FROM trip 
         WHERE trip.DriverID = %s AND trip.Status = 'Completed'
         ORDER BY trip.Date DESC, trip.PickUpTime DESC
@@ -2456,7 +2456,7 @@ def driver_history():
                      WHERE feedbackrating.TripID = %s 
                      AND feedbackrating.FromUserID = %s 
                      AND feedbackrating.ToUserID = u.UserID) AS has_rating
-                FROM TripRiders tr
+                FROM tripriders tr
                 JOIN rider r ON tr.RiderID = r.RiderID
                 JOIN user u ON r.UserID = u.UserID
                 WHERE tr.TripID = %s
@@ -2487,7 +2487,7 @@ def submit_rating(trip_id):
 
         # Ensure the rider_id is valid for this trip
         cursor.execute('''
-            SELECT RiderID FROM TripRiders WHERE TripID = %s AND RiderID = %s
+            SELECT RiderID FROM tripriders WHERE TripID = %s AND RiderID = %s
         ''', (trip_id, rider_id))
         rider = cursor.fetchone()
 
@@ -2528,10 +2528,10 @@ def get_trip_riders(trip_id):
         # Fetch all riders for the trip
         cursor.execute('''
             SELECT rider.RiderID, user.FullName 
-            FROM tripRiders 
-            JOIN rider ON tripRiders.RiderID = rider.RiderID 
+            FROM tripriders 
+            JOIN rider ON tripriders.RiderID = rider.RiderID 
             JOIN user ON rider.UserID = user.UserID 
-            WHERE tripRiders.TripID = %s
+            WHERE tripriders.TripID = %s
         ''', (trip_id,))
         riders = cursor.fetchall()
 
