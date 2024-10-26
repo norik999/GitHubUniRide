@@ -69,7 +69,7 @@ def resend_verification():
 
     # Lookup the user from the database to get the full name
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT FullName FROM User WHERE Email = %s", (email,))
+    cursor.execute("SELECT FullName FROM user WHERE Email = %s", (email,))
     result = cursor.fetchone()
     cursor.close()
 
@@ -95,7 +95,7 @@ def email_verification():
 
         # Retrieve full name based on the email from the User table
         cursor = mysql.connection.cursor()
-        cursor.execute("SELECT FullName FROM User WHERE Email = %s", (email,))
+        cursor.execute("SELECT FullName FROM user WHERE Email = %s", (email,))
         result = cursor.fetchone()
         cursor.close()
 
@@ -271,7 +271,7 @@ def register_post():
         return render_template('Register.html', account_created=False)
     
     # Check if the email already exists in the User table
-    cursor.execute('SELECT * FROM User WHERE Email = %s', (email,))
+    cursor.execute('SELECT * FROM user WHERE Email = %s', (email,))
     existing_user = cursor.fetchone()
 
     if existing_user:
@@ -284,7 +284,7 @@ def register_post():
 
     try:
         # Insert user data into the user table with 'Inactive' status and Verified = FALSE
-        cursor.execute('''INSERT INTO User
+        cursor.execute('''INSERT INTO user
                           (FullName, Email, Phone, Age, PostalCode, Gender, Password, SecretQuestion, Answer, AccountType, Status, Verified)
                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Inactive', FALSE)''', 
                           (full_name, email, phone, age, postal_code, gender, hashed_password, secret_question, answer, account_type))
@@ -346,7 +346,7 @@ def confirm_email(token):
 
     # Mark the user as verified and update status to Active
     cursor = mysql.connection.cursor()
-    cursor.execute("UPDATE User SET Verified = 1, Status = 'Active' WHERE Email = %s", (email,))
+    cursor.execute("UPDATE user SET Verified = 1, Status = 'Active' WHERE Email = %s", (email,))
     mysql.connection.commit()
     cursor.close()
 
@@ -538,7 +538,7 @@ def admin_dashboard():
                COALESCE(d.Rating, 0.0) AS DriverRating,
                c.CarModel, c.CarColor, c.PlateNumber, c.Capacity,
                u.AccountType
-        FROM User u
+        FROM user u
         LEFT JOIN Rider r ON u.UserID = r.UserID
         LEFT JOIN Driver d ON u.UserID = d.UserID
         LEFT JOIN Car c ON d.DriverID = c.DriverID
@@ -626,7 +626,7 @@ def change_status(user_id, action):
 
     new_status = 'Suspended' if action == 'suspend' else 'Active'
 
-    cursor.execute("UPDATE User SET Status = %s WHERE UserID = %s", (new_status, user_id))
+    cursor.execute("UPDATE user SET Status = %s WHERE UserID = %s", (new_status, user_id))
     mysql.connection.commit()
     cursor.close()
 
@@ -650,7 +650,7 @@ def admin_update_driver():
     try:
         # Update user table (common fields)
         cursor.execute('''
-            UPDATE User 
+            UPDATE user 
             SET FullName = %s, Phone = %s, Email = %s 
             WHERE UserID = %s
         ''', (fullname, phone, email, driver_id))
@@ -685,7 +685,7 @@ def admin_update_rider():
     try:
         # Update user table (common fields)
         cursor.execute('''
-            UPDATE User 
+            UPDATE user 
             SET FullName = %s, Phone = %s, Email = %s 
             WHERE UserID = %s
         ''', (fullname, phone, email, rider_id))
@@ -774,7 +774,7 @@ def admin_trips_search():
             t.NoOfPassengers, 
             t.Status AS TripStatus
         FROM Trip t
-        LEFT JOIN User u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
+        LEFT JOIN user u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
         LEFT JOIN Driver d ON t.DriverID = d.DriverID    -- Join Driver table for Driver info
         LEFT JOIN Car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
         WHERE {db_column} LIKE %s
@@ -841,7 +841,7 @@ def admin_report():
         FROM 
             IssueReports ir
         JOIN 
-            User u ON ir.ReporterID = u.UserID
+            user u ON ir.ReporterID = u.UserID
         LEFT JOIN 
             Trip t ON ir.TripID = t.TripID
     ''')
@@ -886,7 +886,7 @@ def admin_report_search():
             FROM 
                 IssueReports ir
             JOIN 
-                User u ON ir.ReporterID = u.UserID
+                user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
                 Trip t ON ir.TripID = t.TripID
             WHERE 
@@ -955,7 +955,7 @@ def get_report_details(case_id):
             FROM 
                 IssueReports ir
             JOIN 
-                User u ON ir.ReporterID = u.UserID
+                user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
                 Trip t ON ir.TripID = t.TripID
             LEFT JOIN 
@@ -1304,7 +1304,7 @@ def rider_profile():
     # Fetch the current user data along with the rating
     cursor.execute("""
         SELECT u.FullName, u.Phone, u.Email, u.Picture, r.Rating 
-        FROM User u 
+        FROM user u 
         JOIN Rider r ON u.UserID = r.UserID 
         WHERE u.UserID = %s
     """, (userID,))
@@ -1332,10 +1332,10 @@ def rider_profile():
                 picture.save(picture_path)
 
                 # Update both phone and picture in the database
-                cursor.execute("UPDATE User SET Phone = %s, Picture = %s WHERE UserID = %s", (phone, picture_filename, userID))
+                cursor.execute("UPDATE user SET Phone = %s, Picture = %s WHERE UserID = %s", (phone, picture_filename, userID))
             else:
                 # Just update the phone number if no picture is uploaded
-                cursor.execute("UPDATE User SET Phone = %s WHERE UserID = %s", (phone, userID))
+                cursor.execute("UPDATE user SET Phone = %s WHERE UserID = %s", (phone, userID))
 
             mysql.connection.commit()
             flash("Profile updated successfully!", "success")
@@ -1820,7 +1820,7 @@ def get_messages(trip_id):
     query = """
     SELECT m.MessageID, m.TripID, m.SenderID, u.FullName AS SenderName, m.Message, m.Timestamp
     FROM messages m
-    JOIN User u ON m.SenderID = u.UserID
+    JOIN user u ON m.SenderID = u.UserID
     WHERE m.TripID = %s
     ORDER BY m.Timestamp ASC
     """
@@ -2357,7 +2357,7 @@ def driver_profile():
     # Fetch the current user data
     cursor.execute("""
         SELECT u.FullName, u.Phone, u.Email, u.Picture 
-        FROM User u 
+        FROM user u 
         WHERE u.UserID = %s
     """, (user_id,))
     user = cursor.fetchone()
@@ -2394,10 +2394,10 @@ def driver_profile():
                 picture.save(picture_path)
 
                 # Update both phone and picture in the database
-                cursor.execute("UPDATE User SET Phone = %s, Picture = %s WHERE UserID = %s", (phone, picture_filename, user_id))
+                cursor.execute("UPDATE user SET Phone = %s, Picture = %s WHERE UserID = %s", (phone, picture_filename, user_id))
             else:
                 # Just update the phone number if no picture is uploaded
-                cursor.execute("UPDATE User SET Phone = %s WHERE UserID = %s", (phone, user_id))
+                cursor.execute("UPDATE user SET Phone = %s WHERE UserID = %s", (phone, user_id))
 
             mysql.connection.commit()
             flash("Profile updated successfully!", "success")
@@ -2458,7 +2458,7 @@ def driver_history():
                      AND feedbackrating.ToUserID = u.UserID) AS has_rating
                 FROM TripRiders tr
                 JOIN Rider r ON tr.RiderID = r.RiderID
-                JOIN User u ON r.UserID = u.UserID
+                JOIN user u ON r.UserID = u.UserID
                 WHERE tr.TripID = %s
             ''', (trip['TripID'], userID, trip['TripID']))
             riders = cursor.fetchall()
@@ -2530,7 +2530,7 @@ def get_trip_riders(trip_id):
             SELECT Rider.RiderID, User.FullName 
             FROM TripRiders 
             JOIN Rider ON TripRiders.RiderID = Rider.RiderID 
-            JOIN User ON Rider.UserID = User.UserID 
+            JOIN user ON Rider.UserID = User.UserID 
             WHERE TripRiders.TripID = %s
         ''', (trip_id,))
         riders = cursor.fetchall()
