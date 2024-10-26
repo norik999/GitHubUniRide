@@ -839,7 +839,7 @@ def admin_report():
             t.From AS PickupLocation,
             t.To AS DropOffLocation
         FROM 
-            issueReports ir
+            issuereports ir
         JOIN 
             user u ON ir.ReporterID = u.UserID
         LEFT JOIN 
@@ -884,7 +884,7 @@ def admin_report_search():
                 t.From AS PickupLocation,
                 t.To AS DropOffLocation
             FROM 
-                IssueReports ir
+                issuereports ir
             JOIN 
                 user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
@@ -915,7 +915,7 @@ def update_case_status():
 
         # Update the status to 'Under Review' and set the admin response
         cursor.execute("""
-            UPDATE IssueReports 
+            UPDATE issuereports 
             SET ReportStatus = 'Under Review', AdminResponse = 'Case Currently Under Review by Support Team'
             WHERE ReportID = %s
         """, (case_id,))
@@ -953,7 +953,7 @@ def get_report_details(case_id):
                 t.NoOfPassengers,
                 d.FullName AS DriverName
             FROM 
-                issueReports ir
+                issuereports ir
             JOIN 
                 user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
@@ -1006,7 +1006,7 @@ def close_case():
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         # Check the current status of the case
-        cursor.execute("SELECT ReportStatus FROM IssueReports WHERE ReportID = %s", (case_id,))
+        cursor.execute("SELECT ReportStatus FROM issuereports WHERE ReportID = %s", (case_id,))
         case = cursor.fetchone()
 
         if not case:
@@ -1017,7 +1017,7 @@ def close_case():
 
         # Update the status to 'Closed' and add the admin response
         cursor.execute('''
-            UPDATE IssueReports 
+            UPDATE issuereports 
             SET ReportStatus = 'Closed', AdminResponse = %s 
             WHERE ReportID = %s
         ''', (admin_response, case_id))
@@ -1690,8 +1690,8 @@ def rider_reportissue():
         details = request.form['details']
 
         try:
-            # Insert the issue report into the IssueReports table
-            cursor.execute('''INSERT INTO IssueReports (ReporterType, ReporterID, TripID, Reason, Description)
+            # Insert the issue report into the issuereports table
+            cursor.execute('''INSERT INTO issuereports (ReporterType, ReporterID, TripID, Reason, Description)
                               VALUES (%s, %s, %s, %s, %s)''',
                            ('Rider', user_id, trip_id, reason, details))
             mysql.connection.commit()
@@ -1710,7 +1710,7 @@ def rider_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute('''
         SELECT ir.ReportID, ir.TripID, ir.Reason, ir.Description, ir.ReportDate, ir.ReportStatus, ir.AdminResponse
-        FROM issueReports ir
+        FROM issuereports ir
         WHERE ir.ReporterType = 'Rider' AND ir.ReporterID = %s
         ORDER BY ir.ReportDate DESC
     ''', (user_id,))
@@ -2565,8 +2565,8 @@ def driver_reportissue():
         details = request.form['details']
 
         try:
-            # Insert the issue report into the IssueReports table
-            cursor.execute('''INSERT INTO IssueReports (ReporterType, ReporterID, TripID, Reason, Description)
+            # Insert the issue report into the issuereports table
+            cursor.execute('''INSERT INTO issuereports (ReporterType, ReporterID, TripID, Reason, Description)
                               VALUES (%s, %s, %s, %s, %s)''',
                            ('Driver', user_id, trip_id, reason, details))
             mysql.connection.commit()
@@ -2584,7 +2584,7 @@ def driver_reportissue():
     # Fetch the driver's reports from the database
     cursor.execute('''
         SELECT ir.ReportID, ir.TripID, ir.Reason, ir.Description, ir.ReportDate, ir.ReportStatus, ir.AdminResponse
-        FROM IssueReports ir
+        FROM issuereports ir
         WHERE ir.ReporterType = 'Driver' AND ir.ReporterID = %s
         ORDER BY ir.ReportDate DESC
     ''', (user_id,))
