@@ -167,7 +167,7 @@ def login_post():
 
         # Handle Admin login
         if role == "Admin":
-            cursor.execute("SELECT * FROM Admin WHERE Email = %s", (email,))
+            cursor.execute("SELECT * FROM admin WHERE Email = %s", (email,))
             account = cursor.fetchone()
             if account and check_password_hash(account["Password"], password):
                 session["loggedin"] = True
