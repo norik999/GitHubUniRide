@@ -207,7 +207,7 @@ def login_post():
 
             # Handle Driver login
             if account["AccountType"] == "Driver":
-                cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (account["UserID"],))
+                cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (account["UserID"],))
                 driver = cursor.fetchone()
                 if driver:
                     session["driver_id"] = driver["DriverID"]
@@ -299,7 +299,7 @@ def register_post():
             capacity = request.form['capacity']
             
             # Insert driver data into the driver table
-            cursor.execute('''INSERT INTO Driver
+            cursor.execute('''INSERT INTO driver
                               (UserID, FullName)
                               VALUES (%s, %s)''', 
                               (user_id,full_name))
@@ -724,7 +724,7 @@ def admin_trips():
         JOIN 
             rider r ON t.TripInitiatorID = r.RiderID  -- Join with User table for Rider info
         LEFT JOIN 
-            driver d ON t.DriverID = d.DriverID      -- Join with Driver table for Driver info
+            driver d ON t.DriverID = d.DriverID      -- Join with driver table for driver info
         LEFT JOIN 
             car c ON d.DriverID = c.DriverID         -- Join with Car table for vehicle info
     ''')
@@ -775,7 +775,7 @@ def admin_trips_search():
             t.Status AS TripStatus
         FROM trip t
         LEFT JOIN user u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
-        LEFT JOIN driver d ON t.DriverID = d.DriverID    -- Join Driver table for Driver info
+        LEFT JOIN driver d ON t.DriverID = d.DriverID    -- Join driver table for driver info
         LEFT JOIN car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
         WHERE {db_column} LIKE %s
     '''
@@ -1897,7 +1897,7 @@ def driver_homepage():
 
     # Get the Driver ID for the current user
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2009,7 +2009,7 @@ def driver_dashboard():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2082,7 +2082,7 @@ def start_trip(trip_id):
     # Check if the driver already has an ongoing trip
     cursor.execute("""
         SELECT TripID FROM trip 
-        WHERE DriverID = (SELECT DriverID FROM Driver WHERE UserID = %s) 
+        WHERE DriverID = (SELECT DriverID FROM driver WHERE UserID = %s) 
         AND Status = 'Ongoing'
     """, (driver_id,))
     ongoing_trip = cursor.fetchone()
@@ -2149,7 +2149,7 @@ def driver_triprequest():
     user_id = session.get('id')  # Make sure to set this in your login logic
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2205,7 +2205,7 @@ def assign_driver(trip_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the driver ID based on the user ID
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2345,7 +2345,7 @@ def driver_profile():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2424,7 +2424,7 @@ def driver_history():
 
     try:
         # Fetch the DriverID associated with the UserID
-        cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (userID,))
+        cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
         driver = cursor.fetchone()
 
         if not driver:
@@ -2549,7 +2549,7 @@ def driver_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2616,7 +2616,7 @@ def driver_createtrip():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM Driver WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2711,7 +2711,7 @@ def current_tripDriver():
 
     # Fetch the user account type (Rider or Driver)
     user_query = """
-    SELECT AccountType FROM User WHERE UserID = %s
+    SELECT AccountType FROM user WHERE UserID = %s
     """
     cursor.execute(user_query, (user_id,))
     user = cursor.fetchone()
@@ -2741,7 +2741,7 @@ def current_tripDriver():
         trip_query = """
         SELECT TripID, `From`, `To`, `PickUpTime`, `DropOffTime`, `NoOfPassengers`, `Fare`, `Status`
         FROM trip
-        WHERE DriverID = (SELECT DriverID FROM Driver WHERE UserID = %s) AND Status = 'Ongoing'
+        WHERE DriverID = (SELECT DriverID FROM driver WHERE UserID = %s) AND Status = 'Ongoing'
         """
         cursor.execute(trip_query, (user_id,))
         trip = cursor.fetchone()  # Fetch one ongoing trip
