@@ -161,7 +161,7 @@ def login_post():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
-        role = request.form["role"]  # Admin/Driver/Rider
+        role = request.form["role"]  # Admin/Driver/rider
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -178,7 +178,7 @@ def login_post():
                 flash("Incorrect Admin credentials", "danger")
                 return redirect(url_for("login"))
 
-        # Handle Driver or Rider login
+        # Handle Driver or rider login
         cursor.execute("SELECT * FROM user WHERE Email = %s", (email,))
         account = cursor.fetchone()
 
@@ -215,7 +215,7 @@ def login_post():
                     session["fullname"] = account["FullName"]
                 return redirect(url_for("driver_homepage"))
 
-            # Handle Rider login
+            # Handle rider login
             elif account["AccountType"] == "Rider":
                 # Store the rider's full name
                 session["fullname"] = account["FullName"]
@@ -315,7 +315,7 @@ def register_post():
 
         elif account_type == "Rider":
             # Insert rider data into the rider table
-            cursor.execute('''INSERT INTO Rider
+            cursor.execute('''INSERT INTO rider
                               (UserID, FullName)
                               VALUES (%s, %s)''', 
                               (user_id, full_name))
@@ -539,9 +539,9 @@ def admin_dashboard():
                c.CarModel, c.CarColor, c.PlateNumber, c.Capacity,
                u.AccountType
         FROM user u
-        LEFT JOIN Rider r ON u.UserID = r.UserID
-        LEFT JOIN Driver d ON u.UserID = d.UserID
-        LEFT JOIN Car c ON d.DriverID = c.DriverID
+        LEFT JOIN rider r ON u.UserID = r.UserID
+        LEFT JOIN driver d ON u.UserID = d.UserID
+        LEFT JOIN car c ON d.DriverID = c.DriverID
     '''
     
     params = []
@@ -581,7 +581,7 @@ def admin_dashboard():
             elif search_by == 'Status':
                 where_clauses.append('u.Status LIKE %s')
             elif search_by == 'Rating':
-                if user_type == 'Rider':
+                if user_type == 'rider':
                     where_clauses.append('COALESCE(r.Rating, 0.0) LIKE %s')
                 else:  # Driver
                     where_clauses.append('COALESCE(d.Rating, 0.0) LIKE %s')
@@ -720,13 +720,13 @@ def admin_trips():
             d.FullName AS DriverName,
             c.PlateNumber
         FROM 
-            Trip t
+            trip t
         JOIN 
-            Rider r ON t.TripInitiatorID = r.RiderID  -- Join with User table for Rider info
+            rider r ON t.TripInitiatorID = r.RiderID  -- Join with User table for Rider info
         LEFT JOIN 
-            Driver d ON t.DriverID = d.DriverID      -- Join with Driver table for Driver info
+            driver d ON t.DriverID = d.DriverID      -- Join with Driver table for Driver info
         LEFT JOIN 
-            Car c ON d.DriverID = c.DriverID         -- Join with Car table for vehicle info
+            car c ON d.DriverID = c.DriverID         -- Join with Car table for vehicle info
     ''')
 
     trips = cursor.fetchall()  # Get all rows
@@ -775,8 +775,8 @@ def admin_trips_search():
             t.Status AS TripStatus
         FROM Trip t
         LEFT JOIN user u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
-        LEFT JOIN Driver d ON t.DriverID = d.DriverID    -- Join Driver table for Driver info
-        LEFT JOIN Car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
+        LEFT JOIN driver d ON t.DriverID = d.DriverID    -- Join Driver table for Driver info
+        LEFT JOIN car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
         WHERE {db_column} LIKE %s
     '''
 
@@ -1064,7 +1064,7 @@ def rider_homepage():
 
     # Fetch the RiderID associated with the UserID from the session
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1183,7 +1183,7 @@ def rider_dashboard():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1293,7 +1293,7 @@ def rider_profile():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID from the session
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
     
     if not rider:
@@ -1305,7 +1305,7 @@ def rider_profile():
     cursor.execute("""
         SELECT u.FullName, u.Phone, u.Email, u.Picture, r.Rating 
         FROM user u 
-        JOIN Rider r ON u.UserID = r.UserID 
+        JOIN rider r ON u.UserID = r.UserID 
         WHERE u.UserID = %s
     """, (userID,))
     user = cursor.fetchone()
@@ -1362,7 +1362,7 @@ def rider_createtrip():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID from the session
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1461,7 +1461,7 @@ def rider_history():
 
     try:
         # Fetch the RiderID associated with the UserID from the session
-        cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (userID,))
+        cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
         rider = cursor.fetchone()
 
         if not rider:
@@ -1640,7 +1640,7 @@ def current_tripRider():
 
     # Fetch the RiderID for the current user
     rider_query = """
-    SELECT RiderID FROM Rider WHERE UserID = %s
+    SELECT RiderID FROM rider WHERE UserID = %s
     """
     cursor.execute(rider_query, (user_id,))
     rider = cursor.fetchone()
@@ -1674,7 +1674,7 @@ def rider_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (user_id,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1710,7 +1710,7 @@ def rider_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute('''
         SELECT ir.ReportID, ir.TripID, ir.Reason, ir.Description, ir.ReportDate, ir.ReportStatus, ir.AdminResponse
-        FROM IssueReports ir
+        FROM issueReports ir
         WHERE ir.ReporterType = 'Rider' AND ir.ReporterID = %s
         ORDER BY ir.ReportDate DESC
     ''', (user_id,))
@@ -2021,13 +2021,13 @@ def driver_dashboard():
     # Query trips for the logged-in driver, but exclude 'Completed' trips
     cursor.execute('''
         SELECT Trip.*, 
-               IFNULL(Rider.FullName, 'No Rider Assigned') AS RiderName,
+               IFNULL(rider.FullName, 'No Rider Assigned') AS RiderName,
                Trip.GuestCount,
                (Trip.TripInitiatorID = %s) AS is_initiator  -- Check if the driver is the trip initiator
         FROM Trip 
-        LEFT JOIN Rider ON Trip.TripInitiatorID = Rider.RiderID 
-        WHERE Trip.DriverID = %s AND Trip.Status IN ('Planned', 'Ongoing')
-        ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+        LEFT JOIN rider ON Trip.TripInitiatorID = rider.RiderID 
+        WHERE trip.DriverID = %s AND trip.Status IN ('Planned', 'Ongoing')
+        ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID, driver_id))
     
     trips = cursor.fetchall()
@@ -2036,10 +2036,10 @@ def driver_dashboard():
     for trip in trips:
         # Fetch all riders for this trip from the TripRiders table
         cursor.execute('''
-            SELECT Rider.FullName
-            FROM Rider
-            JOIN TripRiders ON Rider.RiderID = TripRiders.RiderID
-            WHERE TripRiders.TripID = %s
+            SELECT rider.FullName
+            FROM rider
+            JOIN tripRiders ON rider.RiderID = tripRiders.RiderID
+            WHERE tripRiders.TripID = %s
         ''', (trip['TripID'],))
         passengers = cursor.fetchall()
 
@@ -2276,9 +2276,9 @@ def driversend_message():
 
         # Retrieve the Rider's UserID (TripInitiatorID) from the Trip table
         query = """
-            SELECT Trip.TripInitiatorID AS ReceiverID 
-            FROM Trip 
-            WHERE Trip.TripID = %s
+            SELECT trip.TripInitiatorID AS ReceiverID 
+            FROM trip 
+            WHERE trip.TripID = %s
         """
         cursor.execute(query, (trip_id,))
         receiver = cursor.fetchone()
@@ -2457,7 +2457,7 @@ def driver_history():
                      AND feedbackrating.FromUserID = %s 
                      AND feedbackrating.ToUserID = u.UserID) AS has_rating
                 FROM TripRiders tr
-                JOIN Rider r ON tr.RiderID = r.RiderID
+                JOIN rider r ON tr.RiderID = r.RiderID
                 JOIN user u ON r.UserID = u.UserID
                 WHERE tr.TripID = %s
             ''', (trip['TripID'], userID, trip['TripID']))
@@ -2494,7 +2494,7 @@ def submit_rating(trip_id):
         if rider:
             # Now fetch the corresponding UserID for this RiderID
             cursor.execute('''
-                SELECT UserID FROM Rider WHERE RiderID = %s
+                SELECT UserID FROM rider WHERE RiderID = %s
             ''', (rider_id,))
             rider_user = cursor.fetchone()
 
@@ -2527,11 +2527,11 @@ def get_trip_riders(trip_id):
 
         # Fetch all riders for the trip
         cursor.execute('''
-            SELECT Rider.RiderID, User.FullName 
-            FROM TripRiders 
-            JOIN Rider ON TripRiders.RiderID = Rider.RiderID 
-            JOIN user ON Rider.UserID = User.UserID 
-            WHERE TripRiders.TripID = %s
+            SELECT rider.RiderID, user.FullName 
+            FROM tripRiders 
+            JOIN rider ON tripRiders.RiderID = rider.RiderID 
+            JOIN user ON rider.UserID = user.UserID 
+            WHERE tripRiders.TripID = %s
         ''', (trip_id,))
         riders = cursor.fetchall()
 
@@ -2761,7 +2761,7 @@ def rider_availabletrips():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM Rider WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (user_id,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -2776,7 +2776,7 @@ def rider_availabletrips():
         try:
             # Directly insert the rider into the TripRiders table
             cursor.execute('''
-                INSERT INTO TripRiders (TripID, RiderID)
+                INSERT INTO tripriders (TripID, RiderID)
                 VALUES (%s, %s)
             ''', (trip_id, rider_id))
             mysql.connection.commit()
