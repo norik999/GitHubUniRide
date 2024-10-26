@@ -263,7 +263,7 @@ def register_post():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Check if the email domain is in the AllowedDomains table
-    cursor.execute('SELECT * FROM AllowedDomains WHERE DomainName = %s', (email_domain,))
+    cursor.execute('SELECT * FROM alloweddomains WHERE DomainName = %s', (email_domain,))
     allowed_domain = cursor.fetchone()
 
     if not allowed_domain:
@@ -472,7 +472,7 @@ def manage_domains():
 
         # Insert the new domain into the AllowedDomains table
         try:
-            cursor.execute('INSERT INTO AllowedDomains (DomainName, Organization) VALUES (%s, %s)', 
+            cursor.execute('INSERT INTO alloweddomains (DomainName, Organization) VALUES (%s, %s)', 
                            (domain_name, organization))
             mysql.connection.commit()
             flash('Domain successfully added', 'success')
@@ -481,7 +481,7 @@ def manage_domains():
             flash(f'Error adding domain: {str(e)}', 'danger')
 
     # Retrieve all allowed domains for display
-    cursor.execute('SELECT * FROM AllowedDomains')
+    cursor.execute('SELECT * FROM alloweddomains')
     domains = cursor.fetchall()
     
     cursor.close()
@@ -493,7 +493,7 @@ def check_duplicate_domain():
     domain_name = request.json.get('domain_name')
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute('SELECT * FROM AllowedDomains WHERE DomainName = %s', (domain_name,))
+    cursor.execute('SELECT * FROM alloweddomains WHERE DomainName = %s', (domain_name,))
     domain = cursor.fetchone()
     cursor.close()
 
@@ -510,7 +510,7 @@ def remove_domain(domain_id):
     cursor = mysql.connection.cursor()
 
     try:
-        cursor.execute('DELETE FROM AllowedDomains WHERE DomainID = %s', (domain_id,))
+        cursor.execute('DELETE FROM alloweddomains WHERE DomainID = %s', (domain_id,))
         mysql.connection.commit()
         flash('Domain successfully removed', 'success')
     except Exception as e:
