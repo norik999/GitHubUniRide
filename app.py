@@ -1251,7 +1251,7 @@ def rider_dashboard():
 
     cursor.close()
 
-    return render_template("riderdashboard.html", trips=all_trips)
+    return render_template("RiderDashboard.html", trips=all_trips)
 
 
 
@@ -2803,7 +2803,7 @@ def rider_availabletrips():
     available_trips = cursor.fetchall()
     cursor.close()
 
-    return render_template("rideravailabletrips.html", trips=available_trips)
+    return render_template("RiderAvailableTrips.html", trips=available_trips)
 
 
 @app.route('/driver_feedback', methods=['GET', 'POST'])
