@@ -21,7 +21,7 @@ app.config["UPLOAD_FOLDER"] = "static/uploads"
 
 app.config["MYSQL_HOST"] = "UniRide.mysql.pythonanywhere-services.com"
 app.config["MYSQL_USER"] = "UniRide"
-app.config["MYSQL_PASSWORD"] = "Noro151299"
+app.config["MYSQL_PASSWORD"] = "Noro151299$"
 app.config["MYSQL_DB"] = "UniRide$uniride"
 #mysql = MySQL(app)
 
