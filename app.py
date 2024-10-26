@@ -179,7 +179,7 @@ def login_post():
                 return redirect(url_for("login"))
 
         # Handle Driver or Rider login
-        cursor.execute("SELECT * FROM User WHERE Email = %s", (email,))
+        cursor.execute("SELECT * FROM user WHERE Email = %s", (email,))
         account = cursor.fetchone()
 
         if account and check_password_hash(account["Password"], password):
