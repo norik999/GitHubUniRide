@@ -773,7 +773,7 @@ def admin_trips_search():
             t.Date, 
             t.NoOfPassengers, 
             t.Status AS TripStatus
-        FROM Trip t
+        FROM trip t
         LEFT JOIN user u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
         LEFT JOIN driver d ON t.DriverID = d.DriverID    -- Join Driver table for Driver info
         LEFT JOIN car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
@@ -798,7 +798,7 @@ def force_complete(trip_id):
 
     # SQL Query to update the trip status to 'Completed'
     update_query = """
-    UPDATE Trip
+    UPDATE trip
     SET Status = 'Completed'
     WHERE TripID = %s AND Status = 'Ongoing'
     """
@@ -839,11 +839,11 @@ def admin_report():
             t.From AS PickupLocation,
             t.To AS DropOffLocation
         FROM 
-            IssueReports ir
+            issueReports ir
         JOIN 
             user u ON ir.ReporterID = u.UserID
         LEFT JOIN 
-            Trip t ON ir.TripID = t.TripID
+            trip t ON ir.TripID = t.TripID
     ''')
 
     reports = cursor.fetchall()
@@ -888,7 +888,7 @@ def admin_report_search():
             JOIN 
                 user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
-                Trip t ON ir.TripID = t.TripID
+                trip t ON ir.TripID = t.TripID
             WHERE 
                 {search_fields[search_by]} LIKE %s
         '''
@@ -953,13 +953,13 @@ def get_report_details(case_id):
                 t.NoOfPassengers,
                 d.FullName AS DriverName
             FROM 
-                IssueReports ir
+                issueReports ir
             JOIN 
                 user u ON ir.ReporterID = u.UserID
             LEFT JOIN 
-                Trip t ON ir.TripID = t.TripID
+                trip t ON ir.TripID = t.TripID
             LEFT JOIN 
-                Driver d ON t.DriverID = d.DriverID
+                driver d ON t.DriverID = d.DriverID
             WHERE 
                 ir.ReportID = %s
         ''', (case_id,))
@@ -1194,13 +1194,13 @@ def rider_dashboard():
 
     # Query trips where the rider is the initiator (excluding 'Completed' trips)
     cursor.execute('''
-        SELECT Trip.*, 
-               IFNULL(Driver.FullName, 'Searching for Driver') AS DriverName,
+        SELECT trip.*, 
+               IFNULL(driver.FullName, 'Searching for Driver') AS DriverName,
                1 AS is_initiator
-        FROM Trip 
-        LEFT JOIN Driver ON Trip.DriverID = Driver.DriverID
-        WHERE Trip.TripInitiatorID = %s AND Trip.Status IN ('Planned', 'Ongoing')
-        ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+        FROM trip 
+        LEFT JOIN driver ON trip.DriverID = driver.DriverID
+        WHERE trip.TripInitiatorID = %s AND trip.Status IN ('Planned', 'Ongoing')
+        ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID,))
 
     trips_initiated = cursor.fetchall()
@@ -1211,27 +1211,27 @@ def rider_dashboard():
     # If there are no initiated trip IDs, modify the query accordingly
     if initiated_trip_ids:
         cursor.execute('''
-            SELECT Trip.*, 
-                   Driver.FullName AS DriverName,
-                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_passengers,
+            SELECT trip.*, 
+                   driver.FullName AS DriverName,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripRiders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
-            FROM Trip
-            JOIN TripRiders ON Trip.TripID = TripRiders.TripID
-            LEFT JOIN Driver ON Trip.DriverID = Driver.DriverID
-            WHERE TripRiders.RiderID = %s AND Trip.TripID NOT IN %s AND Trip.Status IN ('Planned', 'Ongoing')
-            ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+            FROM trip
+            JOIN tripriders ON trip.TripID = tripriders.TripID
+            LEFT JOIN driver ON trip.DriverID = driver.DriverID
+            WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status IN ('Planned', 'Ongoing')
+            ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id, tuple(initiated_trip_ids)))
     else:
         cursor.execute('''
-            SELECT Trip.*, 
-                   Driver.FullName AS DriverName,
-                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_passengers,
+            SELECT trip.*, 
+                   driver.FullName AS DriverName,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripRiders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
-            FROM Trip
-            JOIN TripRiders ON Trip.TripID = TripRiders.TripID
-            LEFT JOIN Driver ON Trip.DriverID = Driver.DriverID
-            WHERE TripRiders.RiderID = %s AND Trip.Status IN ('Planned', 'Ongoing')
-            ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+            FROM trip
+            JOIN tripriders ON trip.TripID = tripRiders.TripID
+            LEFT JOIN driver ON trip.DriverID = driver.DriverID
+            WHERE tripriders.RiderID = %s AND trip.Status IN ('Planned', 'Ongoing')
+            ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id,))
 
     trips_joined = cursor.fetchall()
@@ -1272,7 +1272,7 @@ def update_trip():
         try:
             # Update the trip in the database
             cursor.execute('''
-                UPDATE Trip 
+                UPDATE trip 
                 SET `From` = %s, `To` = %s, PickUpTime = %s, Date = %s, NoOfPassengers = %s, GuestCount = %s
                 WHERE TripID = %s
             ''', (from_location, to_location, pick_up_time, date, totalpassengers, no_of_guest, trip_id))
@@ -1407,7 +1407,7 @@ def rider_createtrip():
                     preferences['Pets'] != pets or
                     preferences['UserType'] != user_type):
                     cursor.execute('''
-                        UPDATE RiderPreferences 
+                        UPDATE riderpreferences 
                         SET DriverGender = %s, DriverAge = %s, PassengerGender = %s, 
                             PassengerAge = %s, Pets = %s, UserType = %s 
                         WHERE RiderID = %s
@@ -1416,7 +1416,7 @@ def rider_createtrip():
                     flash("Preferences updated.", "success")
             else:
                 cursor.execute('''
-                    INSERT INTO RiderPreferences (RiderID, DriverGender, DriverAge, PassengerGender, PassengerAge, Pets, UserType)
+                    INSERT INTO riderpreferences (RiderID, DriverGender, DriverAge, PassengerGender, PassengerAge, Pets, UserType)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ''', (riderID, drivers_gender, drivers_age, passengers_gender, passengers_age, pets, user_type))
                 mysql.connection.commit()
@@ -1424,7 +1424,7 @@ def rider_createtrip():
 
             # Insert the new trip into the database
             cursor.execute('''
-                INSERT INTO Trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, NoOfPassengers, GuestCount, Fare, Distance, CarbonSavings)
+                INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, NoOfPassengers, GuestCount, Fare, Distance, CarbonSavings)
                 VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s, %s)
             ''', (trip_initiator_id, 'Rider', driver_id, date, pick_up_time, from_location, to_location, no_of_passengers, guest_count, 0.0, distance, carbon_savings))
             trip_id = cursor.lastrowid  # Get the ID of the newly created trip
@@ -1472,13 +1472,13 @@ def rider_history():
 
         # Fetch completed trips where the rider is the initiator
         query_initiated = '''
-        SELECT Trip.TripID, Trip.From, Trip.To, Trip.PickUpTime, Trip.DropOffTime, Trip.Date, 
-               Trip.NoOfPassengers, Trip.GuestCount, Trip.Fare, 'Initiated' AS role,
-               (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_riders,
-               (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = Trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
-        FROM Trip 
-        WHERE Trip.TripInitiatorID = %s AND Trip.Status = 'Completed'
-        ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+        SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
+               trip.NoOfPassengers, trip.GuestCount, trip.Fare, 'Initiated' AS role,
+               (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders,
+               (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
+        FROM trip 
+        WHERE trip.TripInitiatorID = %s AND trip.Status = 'Completed'
+        ORDER BY trip.Date DESC, trip.PickUpTime DESC
         '''
         cursor.execute(query_initiated, (userID, userID))
         initiated_trips = cursor.fetchall()
@@ -1486,26 +1486,26 @@ def rider_history():
         # Fetch completed trips where the rider joined the trip (not initiator)
         if initiated_trips:
             query_joined = '''
-            SELECT Trip.TripID, Trip.From, Trip.To, Trip.PickUpTime, Trip.DropOffTime, Trip.Date, 
-                   Trip.NoOfPassengers, Trip.GuestCount, Trip.Fare, 'Joined' AS role,
-                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_riders,
-                   (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = Trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
-            FROM Trip
-            JOIN TripRiders ON Trip.TripID = TripRiders.TripID
-            WHERE TripRiders.RiderID = %s AND Trip.TripID NOT IN %s AND Trip.Status = 'Completed'
-            ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+            SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
+                   trip.NoOfPassengers, trip.GuestCount, trip.Fare, 'Joined' AS role,
+                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = trip.TripID) AS current_riders,
+                   (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
+            FROM trip
+            JOIN tripriders ON trip.TripID = triptiders.TripID
+            WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status = 'Completed'
+            ORDER BY trip.Date DESC, trip.PickUpTime DESC
             '''
             cursor.execute(query_joined, (userID, rider_id, tuple([trip['TripID'] for trip in initiated_trips])))
         else:
             query_joined = '''
-            SELECT Trip.TripID, Trip.From, Trip.To, Trip.PickUpTime, Trip.DropOffTime, Trip.Date, 
-                   Trip.NoOfPassengers, Trip.GuestCount, Trip.Fare, 'Joined' AS role,
-                   (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_riders,
-                   (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = Trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
-            FROM Trip
-            JOIN TripRiders ON Trip.TripID = TripRiders.TripID
-            WHERE TripRiders.RiderID = %s AND Trip.Status = 'Completed'
-            ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+            SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
+                   trip.NoOfPassengers, trip.GuestCount, trip.Fare, 'Joined' AS role,
+                   (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders,
+                   (SELECT COUNT(*) FROM feedbackrating WHERE feedbackrating.TripID = trip.TripID AND feedbackrating.FromUserID = %s) AS has_feedback
+            FROM trip
+            JOIN tripriders ON trip.TripID = tripriders.TripID
+            WHERE tripriders.RiderID = %s AND trip.Status = 'Completed'
+            ORDER BY trip.Date DESC, trip.PickUpTime DESC
             '''
             cursor.execute(query_joined, (userID, rider_id))
         
@@ -1594,12 +1594,12 @@ def trip_details(trip_id):
     try:
         # Fetch trip details by trip ID
         query = '''
-        SELECT Trip.TripID, Trip.`From`, Trip.`To`, Trip.PickUpTime, Trip.DropOffTime, Trip.Date, 
-               Trip.NoOfPassengers, Trip.GuestCount, Trip.Fare, Trip.Status, Driver.FullName AS DriverName,
-               (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_riders
-        FROM Trip 
-        LEFT JOIN Driver ON Trip.DriverID = Driver.DriverID
-        WHERE Trip.TripID = %s
+        SELECT trip.TripID, trip.`From`, trip.`To`, trip.PickUpTime, trip.DropOffTime, trip.Date, 
+               trip.NoOfPassengers, trip.GuestCount, trip.Fare, trip.Status, driver.FullName AS DriverName,
+               (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_riders
+        FROM trip 
+        LEFT JOIN driver ON trip.DriverID = driver.DriverID
+        WHERE trip.TripID = %s
         '''
         cursor.execute(query, (trip_id,))
         trip_details = cursor.fetchone()
@@ -1653,7 +1653,7 @@ def current_tripRider():
     # Fetch ongoing trip details for the Rider
     trip_query = """
     SELECT `From`, `To`, `PickUpTime`, `DropOffTime`, `NoOfPassengers`, `Fare`, `Status`
-    FROM Trip
+    FROM trip
     WHERE Status = 'Ongoing'
     """
     cursor.execute(trip_query)
@@ -1718,9 +1718,9 @@ def rider_reportissue():
 
     # Fetch completed trips for the dropdown
     cursor.execute('''SELECT TripID, `From`, `To`, `Date`
-                      FROM Trip
-                      WHERE (TripInitiatorID = %s OR Trip.TripID IN 
-                          (SELECT TripID FROM TripRiders WHERE RiderID = %s)) 
+                      FROM trip
+                      WHERE (TripInitiatorID = %s OR trip.TripID IN 
+                          (SELECT TripID FROM tripriders WHERE RiderID = %s)) 
                       AND Status = 'Completed'
                       ORDER BY Date DESC''', (user_id, rider_id))
     trips = cursor.fetchall()
@@ -1764,10 +1764,10 @@ def ridersend_message():
 
         # Retrieve the driver's UserID associated with the trip
         cursor.execute("""
-            SELECT Driver.UserID AS ReceiverID 
-            FROM Trip 
-            JOIN Driver ON Trip.DriverID = Driver.DriverID 
-            WHERE Trip.TripID = %s
+            SELECT driver.UserID AS ReceiverID 
+            FROM trip 
+            JOIN driver ON trip.DriverID = driver.DriverID 
+            WHERE trip.TripID = %s
         """, (trip_id,))
         receiver = cursor.fetchone()
 
@@ -2020,12 +2020,12 @@ def driver_dashboard():
     
     # Query trips for the logged-in driver, but exclude 'Completed' trips
     cursor.execute('''
-        SELECT Trip.*, 
+        SELECT trip.*, 
                IFNULL(rider.FullName, 'No Rider Assigned') AS RiderName,
-               Trip.GuestCount,
-               (Trip.TripInitiatorID = %s) AS is_initiator  -- Check if the driver is the trip initiator
-        FROM Trip 
-        LEFT JOIN rider ON Trip.TripInitiatorID = rider.RiderID 
+               trip.GuestCount,
+               (trip.TripInitiatorID = %s) AS is_initiator  -- Check if the driver is the trip initiator
+        FROM trip 
+        LEFT JOIN rider ON trip.TripInitiatorID = rider.RiderID 
         WHERE trip.DriverID = %s AND trip.Status IN ('Planned', 'Ongoing')
         ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID, driver_id))
@@ -2081,7 +2081,7 @@ def start_trip(trip_id):
 
     # Check if the driver already has an ongoing trip
     cursor.execute("""
-        SELECT TripID FROM Trip 
+        SELECT TripID FROM trip 
         WHERE DriverID = (SELECT DriverID FROM Driver WHERE UserID = %s) 
         AND Status = 'Ongoing'
     """, (driver_id,))
@@ -2095,7 +2095,7 @@ def start_trip(trip_id):
     try:
         # If no ongoing trip, update the selected trip's status to 'Ongoing'
         cursor.execute('''
-            UPDATE Trip 
+            UPDATE trip 
             SET Status = 'Ongoing'
             WHERE TripID = %s
         ''', (trip_id,))
@@ -2125,7 +2125,7 @@ def driver_update_trip():
         try:
             # Update the trip in the database
             cursor.execute('''
-                UPDATE Trip 
+                UPDATE trip 
                 SET `From` = %s, `To` = %s, PickUpTime = %s, Date = %s 
                 WHERE TripID = %s
             ''', (from_location, to_location, pick_up_time, date, trip_id))
@@ -2168,7 +2168,7 @@ def driver_triprequest():
             NoOfPassengers AS passenger_count,
             Fare AS fare
         FROM 
-            Trip
+            trip
         WHERE 
             DriverID IS NULL AND Status = 'Planned'
     """
@@ -2217,7 +2217,7 @@ def assign_driver(trip_id):
     try:
         # Update the Trip table to assign the driver and set the status to 'Ongoing'
         cursor.execute('''
-            UPDATE Trip
+            UPDATE trip
             SET DriverID = %s
             WHERE TripID = %s
         ''', (driver_id, trip_id))
@@ -2243,7 +2243,7 @@ def driver_trip_chat(trip_id):
         return redirect(url_for("login"))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT DriverID FROM Trip WHERE TripID = %s", (trip_id,))
+    cursor.execute("SELECT DriverID FROM trip WHERE TripID = %s", (trip_id,))
     trip = cursor.fetchone()
 
     if not trip or trip["DriverID"] != session["driver_id"]:
@@ -2435,12 +2435,12 @@ def driver_history():
 
         # Fetch all completed trips for this driver
         query = '''
-        SELECT Trip.TripID, Trip.From, Trip.To, Trip.PickUpTime, Trip.DropOffTime, Trip.Date, 
-               Trip.NoOfPassengers, Trip.GuestCount, Trip.Fare, 
-               (SELECT COUNT(*) FROM TripRiders WHERE TripRiders.TripID = Trip.TripID) AS current_riders
-        FROM Trip 
-        WHERE Trip.DriverID = %s AND Trip.Status = 'Completed'
-        ORDER BY Trip.Date DESC, Trip.PickUpTime DESC
+        SELECT trip.TripID, trip.From, trip.To, trip.PickUpTime, trip.DropOffTime, trip.Date, 
+               trip.NoOfPassengers, trip.GuestCount, trip.Fare, 
+               (SELECT COUNT(*) FROM tripriders WHERE TripRiders.TripID = trip.TripID) AS current_riders
+        FROM trip 
+        WHERE trip.DriverID = %s AND trip.Status = 'Completed'
+        ORDER BY trip.Date DESC, trip.PickUpTime DESC
         '''
         cursor.execute(query, (driver_id,))
         completed_trips = cursor.fetchall()
@@ -2592,7 +2592,7 @@ def driver_reportissue():
 
     # Fetch completed trips for the dropdown
     cursor.execute('''SELECT TripID, `From`, `To`, `Date`
-                      FROM Trip
+                      FROM trip
                       WHERE DriverID = %s AND Status = 'Completed'
                       ORDER BY Date DESC''', (driver_id,))
     trips = cursor.fetchall()
@@ -2677,7 +2677,7 @@ def driver_createtrip():
 
             # Insert the new trip into the database
             cursor.execute('''
-                INSERT INTO Trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, `From`, `To`, 
+                INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, `From`, `To`, 
                                   NoOfPassengers, Fare, Distance, CarbonSavings)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (trip_initiator_id, 'Driver', driverID, date, pick_up_time, 
@@ -2729,7 +2729,7 @@ def current_tripDriver():
             current_time = datetime.now().time()  # Get current time
             
             update_trip_query = """
-            UPDATE Trip 
+            UPDATE trip 
             SET Status = 'Completed', DropOffTime = %s 
             WHERE TripID = %s
             """
@@ -2740,7 +2740,7 @@ def current_tripDriver():
         # Fetch ongoing trip details for the driver
         trip_query = """
         SELECT TripID, `From`, `To`, `PickUpTime`, `DropOffTime`, `NoOfPassengers`, `Fare`, `Status`
-        FROM Trip
+        FROM trip
         WHERE DriverID = (SELECT DriverID FROM Driver WHERE UserID = %s) AND Status = 'Ongoing'
         """
         cursor.execute(trip_query, (user_id,))
@@ -2792,12 +2792,12 @@ def rider_availabletrips():
     # the current rider hasn't already joined, and the trip was initiated by a driver.
     cursor.execute('''
         SELECT t.TripID, t.From, t.To, t.PickUpTime, t.Date, t.NoOfPassengers, 
-            (SELECT COUNT(*) FROM TripRiders WHERE TripID = t.TripID) AS current_passengers
-        FROM Trip t 
+            (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) AS current_passengers
+        FROM trip t 
         WHERE t.TripInitiatorType = "Driver"
         AND t.Status = 'Planned'
-        AND t.TripID NOT IN (SELECT TripID FROM TripRiders WHERE RiderID = %s)
-        AND (SELECT COUNT(*) FROM TripRiders WHERE TripID = t.TripID) < t.NoOfPassengers
+        AND t.TripID NOT IN (SELECT TripID FROM tripriders WHERE RiderID = %s)
+        AND (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) < t.NoOfPassengers
     ''', (rider_id,))
 
     available_trips = cursor.fetchall()
