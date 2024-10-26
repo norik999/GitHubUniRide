@@ -1989,7 +1989,7 @@ def driver_homepage():
     cursor.close()
 
     return render_template(
-        'DriverHomepage.html',
+        'DriverHomePage.html',
         now=now,
         show_modal=show_modal,
         preferences=preferences,
