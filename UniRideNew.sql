@@ -52,6 +52,7 @@ CREATE TABLE `alloweddomains` (
   `DomainID` int NOT NULL AUTO_INCREMENT,
   `DomainName` varchar(255) NOT NULL,
   `Organization` varchar(255) DEFAULT NULL,
+  `UserType` enum('Staff','Student') DEFAULT 'Student',
   `CreatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`DomainID`),
   UNIQUE KEY `DomainName` (`DomainName`)
@@ -64,7 +65,12 @@ CREATE TABLE `alloweddomains` (
 
 LOCK TABLES `alloweddomains` WRITE;
 /*!40000 ALTER TABLE `alloweddomains` DISABLE KEYS */;
-INSERT INTO `alloweddomains` VALUES (1,'gmail.com','Google','2024-10-13 15:41:14'),(2,'sim.edu.sg','Sim Staff','2024-10-13 15:41:14'),(3,'mymail.sim.edu.sg','Sim Student','2024-10-13 15:41:14'),(4,'uowmail.edu.au','Uow Student','2024-10-13 15:41:14'),(5,'uow.edu.au','Uow Staff','2024-10-13 15:41:14');
+INSERT INTO `alloweddomains` (`DomainID`, `DomainName`, `Organization`, `UserType`, `CreatedAt`) VALUES
+(1, 'gmail.com', 'Google', 'Student', '2024-10-13 15:41:14'),
+(2, 'sim.edu.sg', 'Sim', 'Staff', '2024-10-13 15:41:14'),
+(3, 'mymail.sim.edu.sg', 'Sim', 'Student', '2024-10-13 15:41:14'),
+(4, 'uowmail.edu.au', 'Uow', 'Student', '2024-10-13 15:41:14'),
+(5, 'uow.edu.au', 'Uow', 'Staff', '2024-10-13 15:41:14');
 /*!40000 ALTER TABLE `alloweddomains` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -110,7 +116,7 @@ CREATE TABLE `driver` (
   `DriverID` int NOT NULL AUTO_INCREMENT,
   `UserID` int NOT NULL,
   `FullName` varchar(100) NOT NULL,
-  `Rating` float DEFAULT '0',
+  `Rating` DECIMAL(3,1) DEFAULT '5.0',
   PRIMARY KEY (`DriverID`),
   KEY `UserID` (`UserID`),
   CONSTRAINT `driver_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -137,10 +143,9 @@ DROP TABLE IF EXISTS `driverpreferences`;
 CREATE TABLE `driverpreferences` (
   `PreferenceID` int NOT NULL AUTO_INCREMENT,
   `DriverID` int NOT NULL,
-  `PassengerAge` enum('Any','18-25','26-35','36-45','45+') NOT NULL,
   `PassengerGender` enum('Any','Female','Male') NOT NULL,
-  `UserType` enum('Any','Students','Staff') NOT NULL,
-  `Pets` enum('Any','Yes','No') NOT NULL,
+  `UserType` enum('Any','Student','Staff') NOT NULL,
+  `Pets` enum('Yes','No') NOT NULL,
   PRIMARY KEY (`PreferenceID`),
   KEY `DriverID` (`DriverID`),
   CONSTRAINT `driverpreferences_ibfk_1` FOREIGN KEY (`DriverID`) REFERENCES `driver` (`DriverID`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -153,7 +158,7 @@ CREATE TABLE `driverpreferences` (
 
 LOCK TABLES `driverpreferences` WRITE;
 /*!40000 ALTER TABLE `driverpreferences` DISABLE KEYS */;
-INSERT INTO `driverpreferences` VALUES (4,15,'Any','Any','Any','No');
+INSERT INTO `driverpreferences` VALUES (4,15,'Any','Any','Yes');
 /*!40000 ALTER TABLE `driverpreferences` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -293,7 +298,7 @@ CREATE TABLE `rider` (
   `RiderID` int NOT NULL AUTO_INCREMENT,
   `UserID` int NOT NULL,
   `FullName` varchar(100) NOT NULL,
-  `Rating` float DEFAULT '0',
+  `Rating` DECIMAL(3,1) DEFAULT '5.0',
   PRIMARY KEY (`RiderID`),
   KEY `UserID` (`UserID`),
   CONSTRAINT `rider_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -320,16 +325,15 @@ DROP TABLE IF EXISTS `riderpreferences`;
 CREATE TABLE `riderpreferences` (
   `PreferenceID` int NOT NULL AUTO_INCREMENT,
   `RiderID` int NOT NULL,
-  `DriverAge` enum('Any','18-25','26-35','36-45','45+') NOT NULL,
-  `DriverGender` enum('Any','Female','Male') NOT NULL,
-  `Pets` enum('Any','Yes','No') NOT NULL,
-  `PassengerAge` enum('Any','18-25','26-35','36-45','45+') NOT NULL,
   `PassengerGender` enum('Any','Female','Male') NOT NULL,
   `UserType` enum('Any','Student','Staff') NOT NULL,
+  `Pets` enum('Any','Yes','No') NOT NULL,
+  `DriverGender` enum('Any','Female','Male') NOT NULL,
   PRIMARY KEY (`PreferenceID`),
   KEY `RiderID` (`RiderID`),
   CONSTRAINT `riderpreferences_ibfk_1` FOREIGN KEY (`RiderID`) REFERENCES `rider` (`RiderID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -338,7 +342,7 @@ CREATE TABLE `riderpreferences` (
 
 LOCK TABLES `riderpreferences` WRITE;
 /*!40000 ALTER TABLE `riderpreferences` DISABLE KEYS */;
-INSERT INTO `riderpreferences` VALUES (7,21,'Any','Any','No','Any','Any','Any');
+INSERT INTO `riderpreferences` VALUES (7,21,'Any','Any','No','Any');
 /*!40000 ALTER TABLE `riderpreferences` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -442,6 +446,20 @@ INSERT INTO `tripriders` VALUES (20,21),(21,21),(22,21),(23,21),(25,21);
 /*!40000 ALTER TABLE `tripriders` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+CREATE TABLE `trip_preferences` (
+  `PreferenceID` int NOT NULL AUTO_INCREMENT,
+  `TripID` int NOT NULL,
+  `AllowUserType` enum('Staff', 'Student', 'Any') DEFAULT 'Any',
+  `GenderPref` enum('Male', 'Female', 'Any') DEFAULT 'Any',
+  `AllowPets` enum('Yes', 'No') DEFAULT 'No',
+  `DriverRating` decimal(3,1) DEFAULT NULL,
+  `DriverGender` enum('Male','Female','Other') DEFAULT NULL,
+  PRIMARY KEY (`PreferenceID`),
+  KEY `TripID` (`TripID`),
+  CONSTRAINT `trip_preferences_ibfk_1` FOREIGN KEY (`TripID`) REFERENCES `trip` (`TripID`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 --
 -- Table structure for table `user`
 --
@@ -462,6 +480,7 @@ CREATE TABLE `user` (
   `Answer` varchar(255) NOT NULL,
   `Picture` varchar(255) DEFAULT NULL,
   `AccountType` enum('Rider','Driver') NOT NULL,
+  `UserType` enum('Staff','Student') DEFAULT 'Student',
   `Status` enum('Active','Inactive','Suspended') NOT NULL DEFAULT 'Inactive',
   `CreatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `Verified` varchar(10) DEFAULT '0',
@@ -477,7 +496,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (37,'Mong Wen Xiang','mongwenxiang@gmail.com','88553355',26,552233,'Male','pbkdf2:sha256:600000$onafjNq0$2695a097b0b8ab6c4309f7c8f3211488de049905fe2e32b8ff343852e1a98b99','What is your favorite book?','The Perfect Storm',NULL,'Rider','Inactive','2024-10-08 16:34:01','1'),(40,'Test Mong','mongwenxiang@hotmail.com','88665544',27,554433,'Male','pbkdf2:sha256:600000$4bIJON49$0173e8e437acc39a9f8bf3249028d902977b67937db80d8177d090edfac98461','What is your favorite book?','The Perfect Storm',NULL,'Rider','Active','2024-10-09 04:35:52','1'),(41,'Driver Mong','wenxiangmong@Gmail.com','98776654',27,667744,'Male','pbkdf2:sha256:600000$UL2fVqSJ$bd51fcca60ce392d7ce441248b16f1b04afb24d9633d6f27edbc7a5a13f08469','What is your favorite book?','The Perfect Storm',NULL,'Driver','Active','2024-10-14 09:54:55','1');
+INSERT INTO `user` VALUES (37,'Mong Wen Xiang','mongwenxiang@gmail.com','88553355',26,552233,'Male','pbkdf2:sha256:600000$onafjNq0$2695a097b0b8ab6c4309f7c8f3211488de049905fe2e32b8ff343852e1a98b99','What is your favorite book?','The Perfect Storm',NULL,'Rider','Staff','Inactive','2024-10-08 16:34:01','1'),(40,'Test Mong','mongwenxiang@hotmail.com','88665544',27,554433,'Male','pbkdf2:sha256:600000$4bIJON49$0173e8e437acc39a9f8bf3249028d902977b67937db80d8177d090edfac98461','What is your favorite book?','The Perfect Storm',NULL,'Rider','Staff','Active','2024-10-09 04:35:52','1'),(41,'Driver Mong','wenxiangmong@Gmail.com','98776654',27,667744,'Male','pbkdf2:sha256:600000$UL2fVqSJ$bd51fcca60ce392d7ce441248b16f1b04afb24d9633d6f27edbc7a5a13f08469','What is your favorite book?','The Perfect Storm',NULL,'Driver','Staff','Active','2024-10-14 09:54:55','1');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
