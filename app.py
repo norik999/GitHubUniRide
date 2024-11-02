@@ -170,7 +170,7 @@ def login_post():
             cursor.execute("SELECT * FROM admin WHERE Email = %s", (email,))
             account = cursor.fetchone()
             if account and check_password_hash(account["Password"], password):
-                session["loggedin"] = True
+                session["admin_loggedin"] = True
                 session["email"] = account["Email"]
                 session["role"] = "Admin"
                 return redirect(url_for("admin_dashboard"))
@@ -227,17 +227,18 @@ def login_post():
 
 
 
-
-
-
-
 @app.route("/logout")
 def logout():
     session.pop("loggedin", None)
-    session.pop("id", None)
-    session.pop("username", None)
+    session.pop("admin_loggedin", None)  # Clear the admin session flag if present
+    session.pop("email", None)
     session.pop("role", None)
+    session.pop("fullname", None)
+    session.pop("id", None)
+    session.pop("driver_id", None)
+    flash("You have been logged out.", "success")
     return redirect(url_for("login"))
+
 
 @app.route('/register')
 def register():
@@ -270,6 +271,9 @@ def register_post():
         flash("Email domain not allowed. Please use an allowed domain to register.", "danger")
         return render_template('Register.html', account_created=False)
     
+    # Retrieve UserType from the allowed domain entry
+    user_type = allowed_domain['UserType']
+
     # Check if the email already exists in the User table
     cursor.execute('SELECT * FROM user WHERE Email = %s', (email,))
     existing_user = cursor.fetchone()
@@ -285,9 +289,9 @@ def register_post():
     try:
         # Insert user data into the user table with 'Inactive' status and Verified = FALSE
         cursor.execute('''INSERT INTO user
-                          (FullName, Email, Phone, Age, PostalCode, Gender, Password, SecretQuestion, Answer, AccountType, Status, Verified)
-                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Inactive', FALSE)''', 
-                          (full_name, email, phone, age, postal_code, gender, hashed_password, secret_question, answer, account_type))
+                          (FullName, Email, Phone, Age, PostalCode, Gender, Password, SecretQuestion, Answer, AccountType, UserType, Status, Verified)
+                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Inactive', FALSE)''', 
+                          (full_name, email, phone, age, postal_code, gender, hashed_password, secret_question, answer, account_type, user_type))
         mysql.connection.commit()
 
         user_id = cursor.lastrowid  # Get the generated UserID
@@ -463,17 +467,22 @@ def password_reset():
 
 @app.route('/admin-domains', methods=['GET', 'POST'])
 def manage_domains():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)  # Use DictCursor for dictionaries
+    if not session.get("admin_loggedin"):
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for("login"))
     
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
     if request.method == 'POST':
-        # Get domain and organization details from the form
+        # Get form data
         domain_name = request.form.get('domain_name')
         organization = request.form.get('organization')
+        user_type = request.form.get('user_type')  # Get user type from the form
 
-        # Insert the new domain into the AllowedDomains table
+        # Insert the new domain with the user type
         try:
-            cursor.execute('INSERT INTO alloweddomains (DomainName, Organization) VALUES (%s, %s)', 
-                           (domain_name, organization))
+            cursor.execute('INSERT INTO alloweddomains (DomainName, Organization, UserType) VALUES (%s, %s, %s)', 
+                           (domain_name, organization, user_type))
             mysql.connection.commit()
             flash('Domain successfully added', 'success')
         except Exception as e:
@@ -487,6 +496,7 @@ def manage_domains():
     cursor.close()
 
     return render_template('AdminManageDomains.html', domains=domains)
+
 
 @app.route('/check-duplicate-domain', methods=['POST'])
 def check_duplicate_domain():
@@ -527,6 +537,10 @@ def remove_domain(domain_id):
 
 @app.route('/admin-dashboard', methods=['GET'])
 def admin_dashboard():
+    if not session.get("admin_loggedin"):
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for("login"))
+
     user_type = request.args.get('userType', '')  # Get userType from search, default to empty string
     search_by = request.args.get('searchBy', '')
     search_value = request.args.get('Keyword', '').strip()  # Renamed to match the HTML input name
@@ -702,6 +716,9 @@ def admin_update_rider():
 
 @app.route('/admin-trips')
 def admin_trips():
+    if not session.get("admin_loggedin"):
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for("login"))
     # Connect to MySQL
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -821,6 +838,9 @@ def force_complete(trip_id):
 
 @app.route('/admin-report')
 def admin_report():
+    if not session.get("admin_loggedin"):
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for("login"))
     # Connect to MySQL
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -1076,17 +1096,15 @@ def rider_homepage():
 
     if request.method == 'POST':
         driver_gender = request.form.get("driverGender", "Any")
-        driver_age = request.form.get('driverAge', "Any")
         pets = request.form.get("pets", "Any")
         passenger_gender = request.form.get("passengerGender", "Any")
-        passenger_age = request.form.get("passengerAge", "Any")
         user_type = request.form.get("studentStaff", "Any")
-
+        print(driver_gender, pets, passenger_gender, user_type)
         cursor.execute('''
             INSERT INTO riderpreferences
-            (riderId, driverGender, driverAge, pets, passengerGender, passengerAge, userType)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ''', (riderID, driver_gender, driver_age, pets, passenger_gender, passenger_age, user_type))
+            (riderId, driverGender, pets, passengerGender, userType)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (riderID, driver_gender, pets, passenger_gender, user_type))
         mysql.connection.commit()
         flash("Preferences saved successfully", "success")
         return redirect(url_for("rider_homepage"))
@@ -1162,6 +1180,9 @@ def rider_homepage():
     print(f"Upcoming Trips: {upcoming_trips}")
     print(f"Total Carbon Savings: {formatted_carbon_savings}")
 
+
+    cursor.execute("SELECT u.Gender, u.UserType FROM rider r JOIN user u ON r.UserID = u.UserID WHERE r.RiderID = %s", (riderID,))
+    rider_details = cursor.fetchone()
     cursor.close()
 
     return render_template(
@@ -1172,7 +1193,9 @@ def rider_homepage():
         completed_current_month=completed_current_month,
         upcoming_trips=upcoming_trips,
         carbon_savings=formatted_carbon_savings,
-        now=datetime.now()
+        now=datetime.now(),
+        rider_gender=rider_details['Gender'],
+        rider_user_type=rider_details['UserType']
     )
 
 
@@ -1310,14 +1333,14 @@ def rider_profile():
     """, (userID,))
     user = cursor.fetchone()
 
-    # Calculate the average rating for the driver
+    # Calculate the average rating for the rider
     cursor.execute("""
         SELECT AVG(Rating) as avg_rating 
         FROM feedbackrating 
         WHERE ToUserID = %s
     """, (userID,))
     avg_rating_result = cursor.fetchone()
-    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 0
+    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
     
 
     if request.method == "POST":
@@ -1390,37 +1413,34 @@ def rider_createtrip():
             # Calculate carbon savings for this trip
             carbon_savings = calculate_carbon_savings(distance)
 
+            """
             # Preferences from the form
             drivers_gender = request.form['driversGender']
-            drivers_age = request.form['driversAge']
             passengers_gender = request.form['passengersGender']
-            passengers_age = request.form['passengersAge']
             pets = request.form['pets']
             user_type = request.form['studentStaff']
 
             # Update or insert rider preferences
             if preferences:
                 if (preferences['DriverGender'] != drivers_gender or
-                    preferences['DriverAge'] != drivers_age or
                     preferences['PassengerGender'] != passengers_gender or
-                    preferences['PassengerAge'] != passengers_age or
                     preferences['Pets'] != pets or
                     preferences['UserType'] != user_type):
                     cursor.execute('''
-                        UPDATE riderpreferences 
-                        SET DriverGender = %s, DriverAge = %s, PassengerGender = %s, 
-                            PassengerAge = %s, Pets = %s, UserType = %s 
-                        WHERE RiderID = %s
-                    ''', (drivers_gender, drivers_age, passengers_gender, passengers_age, pets, user_type, riderID))
+                       UPDATE riderpreferences 
+                        SET DriverGender = %s, PassengerGender = %s, Pets = %s, UserType = %s 
+                       WHERE RiderID = %s
+                    ''', (drivers_gender, passengers_gender, pets, user_type, riderID))
                     mysql.connection.commit()
                     flash("Preferences updated.", "success")
             else:
                 cursor.execute('''
-                    INSERT INTO riderpreferences (RiderID, DriverGender, DriverAge, PassengerGender, PassengerAge, Pets, UserType)
+                    INSERT INTO riderpreferences (RiderID, DriverGender, PassengerGender, Pets, UserType)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ''', (riderID, drivers_gender, drivers_age, passengers_gender, passengers_age, pets, user_type))
+               ''', (riderID, drivers_gender, passengers_gender, pets, user_type))
                 mysql.connection.commit()
                 flash("Preferences saved.", "success")
+            """
 
             # Insert the new trip into the database
             cursor.execute('''
@@ -1446,8 +1466,6 @@ def rider_createtrip():
             cursor.close()
 
     return render_template("RiderCreateTrip.html", preferences=preferences)
-
-
 
 
 @app.route("/rider-savedaddress", methods = ["GET", "POST"])
@@ -1888,8 +1906,6 @@ def rider_feedback():
     return render_template("RiderFeedback.html")
 
 
-
-
 @app.route('/driver-homepage', methods=['GET', 'POST'])
 def driver_homepage():
     userID = session.get('id')
@@ -1909,15 +1925,14 @@ def driver_homepage():
     if request.method == 'POST':
         # Get form data with defaults
         passenger_gender = request.form.get("passengerGender", "Any")
-        passenger_age = request.form.get("passengerAge", "Any")
         user_type = request.form.get("studentStaff", "Any")
-        pets = request.form.get("pets", "Any")
+        pets = request.form.get("pets", "No")
 
         # Insert preferences into the database
         cursor.execute('''INSERT INTO driverpreferences
-                        (driverId, passengerAge, passengerGender, userType, pets)
-                        VALUES (%s, %s, %s, %s, %s)''',
-                       (driverID, passenger_age, passenger_gender, user_type, pets))
+                        (driverId, passengerGender, userType, pets)
+                        VALUES (%s, %s, %s, %s)''',
+                       (driverID, passenger_gender, user_type, pets))
         mysql.connection.commit()
 
         # Flash success message and redirect
@@ -1985,6 +2000,9 @@ def driver_homepage():
                       WHERE DriverID = %s AND Status = 'Planned' ''', (driverID,))
     upcoming_trips = cursor.fetchone()['upcoming_trips']
 
+    cursor.execute("SELECT u.Gender, u.UserType FROM driver d JOIN user u ON d.UserID = u.UserID WHERE d.DriverID = %s", (driverID,))
+    driver_details = cursor.fetchone()
+
     now = datetime.now()
     cursor.close()
 
@@ -1997,7 +2015,9 @@ def driver_homepage():
         completed_current_month=completed_current_month,
         upcoming_trips=upcoming_trips,
         carbon_savings=formatted_carbon_savings,
-        trip_counts=trip_counts
+        trip_counts=trip_counts,
+        driver_gender=driver_details['Gender'],
+        driver_user_type=driver_details['UserType']
     )
 
 
@@ -2369,7 +2389,7 @@ def driver_profile():
         WHERE ToUserID = %s
     """, (user_id,))
     avg_rating_result = cursor.fetchone()
-    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 0
+    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
 
     # Fetch the most recent 5 reviews/ratings
     cursor.execute("""
@@ -2615,15 +2635,27 @@ def driver_createtrip():
     userID = session.get('id')  # Get UserID from session
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+
+    # Fetch the DriverID and Rating associated with the UserID from the session
+    cursor.execute("SELECT DriverID, Rating FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
+
 
     if not driver:
         flash('Driver not found!', 'danger')
         return redirect(url_for('login'))
 
     driverID = driver['DriverID']  # Use the fetched DriverID
+    cursor.execute("""
+        SELECT AVG(Rating) as avg_rating 
+        FROM feedbackrating 
+        WHERE ToUserID = %s
+    """, (userID,))
+    avg_rating_result = cursor.fetchone()
+    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
+
+    cursor.execute("SELECT u.Gender, u.UserType FROM driver d JOIN user u ON d.UserID = u.UserID WHERE d.DriverID = %s", (driverID,))
+    driver_details = cursor.fetchone()
 
     # Load user preferences if they exist
     cursor.execute("SELECT * FROM driverpreferences WHERE DriverID = %s", (driverID,))
@@ -2650,28 +2682,26 @@ def driver_createtrip():
 
             # Preferences from the form
             passengers_gender = request.form['passengersGender']
-            passengers_age = request.form['passengersAge']
             pets = request.form['pets']
             user_type = request.form['studentStaff']
 
             # Update or insert driver preferences
             if preferences:
                 if (preferences['PassengerGender'] != passengers_gender or
-                    preferences['PassengerAge'] != passengers_age or
                     preferences['Pets'] != pets or
                     preferences['UserType'] != user_type):
                     cursor.execute('''
                         UPDATE driverpreferences 
-                        SET PassengerGender = %s, PassengerAge = %s, Pets = %s, UserType = %s 
+                        SET PassengerGender = %s, Pets = %s, UserType = %s 
                         WHERE DriverID = %s
-                    ''', (passengers_gender, passengers_age, pets, user_type, driverID))
+                    ''', (passengers_gender, pets, user_type, driverID))
                     mysql.connection.commit()
                     flash("Preferences updated.", "success")
             else:
                 cursor.execute('''
-                    INSERT INTO driverpreferences (DriverID, PassengerGender, PassengerAge, Pets, UserType)
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', (driverID, passengers_gender, passengers_age, pets, user_type))
+                    INSERT INTO driverpreferences (DriverID, Pets, UserType)
+                    VALUES (%s, %s, %s)
+                ''', (driverID, pets, user_type))
                 mysql.connection.commit()
                 flash("Preferences saved.", "success")
 
@@ -2685,9 +2715,16 @@ def driver_createtrip():
             trip_id = cursor.lastrowid  # Get the ID of the newly created trip
             mysql.connection.commit()
 
+            # Insert trip preferences into `trip_preferences` table
+            cursor.execute('''
+                INSERT INTO trip_preferences (TripID, AllowUserType, GenderPref, AllowPets, DriverRating, DriverGender)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (trip_id, user_type, passengers_gender, pets, avg_rating, driver_details['Gender']))
+            mysql.connection.commit()
+
             flash('Trip created successfully', 'success')
             return redirect(url_for("driver_dashboard"))
-
+        
         except Exception as e:
             mysql.connection.rollback()
             flash('Error creating trip: {}'.format(str(e)), 'danger')
@@ -2696,7 +2733,7 @@ def driver_createtrip():
         finally:
             cursor.close()
 
-    return render_template("DriverCreateTrip.html", preferences=preferences)
+    return render_template("DriverCreateTrip.html", preferences=preferences, driver_gender=driver_details['Gender'], driver_user_type=driver_details['UserType'] )
 
 
 @app.route('/current_tripDriver', methods=['GET', 'POST'])
@@ -2752,58 +2789,99 @@ def current_tripDriver():
 
 @app.route("/rider-availabletrips", methods=["GET", "POST"])
 def rider_availabletrips():
-    user_id = session.get('id')  # Get the logged-in user ID from the session
-
+    user_id = session.get('id')
     if not user_id:
         flash('You are not logged in as a rider', 'danger')
-        return redirect(url_for('login'))  # Redirect to login
+        return redirect(url_for('login'))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch the RiderID associated with the UserID
+    # Fetch RiderID associated with the UserID
     cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (user_id,))
     rider = cursor.fetchone()
+    rider_id = rider['RiderID']
 
-    if not rider:
-        flash('Rider not found!', 'danger')
-        return redirect(url_for('login'))
+    cursor.execute("SELECT u.Gender, u.UserType FROM rider r JOIN user u ON r.UserID = u.UserID WHERE r.RiderID = %s", (rider_id,))
+    rider_details = cursor.fetchone()
 
-    rider_id = rider['RiderID']  # Use the fetched RiderID
+    # Fetch current rider preferences
+    cursor.execute("SELECT * FROM riderpreferences WHERE RiderID = %s", (rider_id,))
+    rider_preferences = cursor.fetchone()
 
-    if request.method == "POST":
-        trip_id = request.form.get('trip_id')
+    # Set default preferences if no preferences are found
+    gender_pref = rider_preferences.get('PassengerGender', 'Any') if rider_preferences else 'Any'
+    user_type_pref = rider_preferences.get('UserType', 'Any') if rider_preferences else 'Any'
+    pets_pref = rider_preferences.get('Pets', 'Any') if rider_preferences else 'Any'
+    driver_gender_pref = rider_preferences.get('DriverGender', 'Any') if rider_preferences else 'Any'
+    min_rating = request.form.get('driverRating', None)  # Rider can input manually
 
-        try:
-            # Directly insert the rider into the TripRiders table
-            cursor.execute('''
-                INSERT INTO tripriders (TripID, RiderID)
-                VALUES (%s, %s)
-            ''', (trip_id, rider_id))
-            mysql.connection.commit()
+    # Override preferences with any form inputs (POST request) and update preferences dynamically
+    gender_pref = request.form.get('genderPreference', gender_pref)
+    user_type_pref = request.form.get('userTypePreference', user_type_pref)
+    pets_pref = request.form.get('petsPreference', pets_pref)
+    driver_gender_pref = request.form.get('driverGender', driver_gender_pref)
+    min_rating = float(request.form.get('driverRating', min_rating) or 0)
 
-            flash('You have successfully joined the trip!', 'success')
+    # Save updated preferences
+    if rider_preferences:
+        cursor.execute('''
+            UPDATE riderpreferences 
+            SET PassengerGender = %s, UserType = %s, Pets = %s, DriverGender = %s
+            WHERE RiderID = %s
+        ''', (gender_pref, user_type_pref, pets_pref, driver_gender_pref, rider_id))
+    else:
+        cursor.execute('''
+            INSERT INTO riderpreferences (RiderID, PassengerGender, UserType, Pets, DriverGender)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (rider_id, gender_pref, user_type_pref, pets_pref, driver_gender_pref))
 
-        except Exception as e:
-            # Handle potential insertion errors (e.g., duplicate entry)
-            mysql.connection.rollback()
-            flash(f'Error joining the trip: {str(e)}', 'danger')
+    mysql.connection.commit()
 
-    # Query to get available trips where the current passengers are less than capacity,
-    # the current rider hasn't already joined, and the trip was initiated by a driver.
-    cursor.execute('''
+    # Build the trip selection query with preferences applied
+    query = '''
         SELECT t.TripID, t.From, t.To, t.PickUpTime, t.Date, t.NoOfPassengers, 
-            (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) AS current_passengers
+               d.FullName AS DriverName, d.Rating AS DriverRating,
+               tp.DriverGender AS TripDriverGender, tp.DriverRating AS TripDriverRating,
+               (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) AS current_passengers
         FROM trip t 
+        JOIN driver d ON t.DriverID = d.DriverID
+        LEFT JOIN trip_preferences tp ON t.TripID = tp.TripID
         WHERE t.TripInitiatorType = "Driver"
-        AND t.Status = 'Planned'
-        AND t.TripID NOT IN (SELECT TripID FROM tripriders WHERE RiderID = %s)
-        AND (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) < t.NoOfPassengers
-    ''', (rider_id,))
+          AND t.Status = 'Planned'
+          AND (SELECT COUNT(*) FROM tripriders WHERE TripID = t.TripID) < t.NoOfPassengers
+          AND t.TripID NOT IN (SELECT TripID FROM tripriders WHERE RiderID = %s)
+    '''
 
+    # Add dynamic filtering based on updated preferences
+    conditions = []
+    params = [rider_id]
+
+    if gender_pref != 'Any':
+        conditions.append("tp.GenderPref = %s")
+        params.append(gender_pref)
+    if user_type_pref != 'Any':
+        conditions.append("tp.AllowUserType = %s")
+        params.append(user_type_pref)
+    if pets_pref != 'Any':
+        conditions.append("tp.AllowPets = %s")
+        params.append(pets_pref)
+    if driver_gender_pref != 'Any':
+        conditions.append("tp.DriverGender = %s")
+        params.append(driver_gender_pref)
+    if min_rating:
+        conditions.append("tp.DriverRating >= %s")
+        params.append(min_rating)
+
+    if conditions:
+        query += ' AND ' + ' AND '.join(conditions)
+
+    cursor.execute(query, params)
     available_trips = cursor.fetchall()
     cursor.close()
 
-    return render_template("RiderAvailableTrips.html", trips=available_trips)
+    return render_template("RiderAvailableTrips.html", trips=available_trips,
+                           gender_pref=gender_pref, user_type_pref=user_type_pref,
+                           pets_pref=pets_pref, driver_gender_pref=driver_gender_pref, min_rating=min_rating, rider_gender=rider_details['Gender'], rider_user_type=rider_details['UserType'])
 
 
 @app.route('/driver_feedback', methods=['GET', 'POST'])
@@ -2847,10 +2925,6 @@ def driver_feedback():
 
 
 
-
-
-
-
-
 if __name__ == "__main__":
     app.run(debug = True)
+
