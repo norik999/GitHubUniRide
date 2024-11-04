@@ -311,7 +311,7 @@ def register_post():
 
             driver_id = cursor.lastrowid
             # Insert car details associated with the driver
-            cursor.execute('''INSERT INTO Car
+            cursor.execute('''INSERT INTO car
                               (DriverID, CarModel, CarColor, PlateNumber, Capacity)
                               VALUES (%s, %s, %s, %s, %s)''', 
                               (driver_id, car_model, car_color, plate_number, capacity))
@@ -671,7 +671,7 @@ def admin_update_driver():
 
         # Update car table (car-specific fields for drivers)
         cursor.execute('''
-            UPDATE Car 
+            UPDATE car 
             SET CarModel = %s, CarColor = %s 
             WHERE DriverID = %s
         ''', (car_model, colour, driver_id))
