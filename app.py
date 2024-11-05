@@ -93,7 +93,7 @@ def email_verification():
             flash('Please provide a valid email', 'danger')
             return redirect(url_for('email_verification'))
 
-        # Retrieve full name based on the email from the User table
+        # Retrieve full name based on the email from the  table
         cursor = mysql.connection.cursor()
         cursor.execute("SELECT FullName FROM user WHERE Email = %s", (email,))
         result = cursor.fetchone()
@@ -274,7 +274,7 @@ def register_post():
     # Retrieve UserType from the allowed domain entry
     user_type = allowed_domain['UserType']
 
-    # Check if the email already exists in the User table
+    # Check if the email already exists in the  table
     cursor.execute('SELECT * FROM user WHERE Email = %s', (email,))
     existing_user = cursor.fetchone()
 
@@ -366,7 +366,7 @@ def email_check():
 
         cursor = mysql.connection.cursor()
 
-        # Check the User table for the email
+        # Check the  table for the email
         cursor.execute("SELECT * FROM user WHERE email = %s", (email,))
         account = cursor.fetchone()
 
@@ -631,7 +631,7 @@ def admin_dashboard():
 def change_status(user_id, action):
     cursor = mysql.connection.cursor()
 
-    cursor.execute("SELECT * FROM User WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT * FROM user WHERE UserID = %s", (user_id,))
     user = cursor.fetchone()
 
     if not user:
