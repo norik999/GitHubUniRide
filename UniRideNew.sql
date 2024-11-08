@@ -129,7 +129,7 @@ CREATE TABLE `driver` (
 
 LOCK TABLES `driver` WRITE;
 /*!40000 ALTER TABLE `driver` DISABLE KEYS */;
-INSERT INTO `driver` VALUES (15,41,'Driver Mong',0);
+INSERT INTO `driver` VALUES (15,41,'Driver Mong',5.0);
 /*!40000 ALTER TABLE `driver` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -311,7 +311,7 @@ CREATE TABLE `rider` (
 
 LOCK TABLES `rider` WRITE;
 /*!40000 ALTER TABLE `rider` DISABLE KEYS */;
-INSERT INTO `rider` VALUES (21,37,'Mong Wen Xiang',0),(23,40,'Test Mong',0);
+INSERT INTO `rider` VALUES (21,37,'Mong Wen Xiang',0),(23,40,'Test Mong',5.0);
 /*!40000 ALTER TABLE `rider` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -460,6 +460,13 @@ CREATE TABLE `trip_preferences` (
   CONSTRAINT `trip_preferences_ibfk_1` FOREIGN KEY (`TripID`) REFERENCES `trip` (`TripID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+
+
+LOCK TABLES `trip_preferences` WRITE;
+/*!40000 ALTER TABLE `trip_preferences` DISABLE KEYS */;
+INSERT INTO `trip_preferences` VALUES (1,27,'Any','Any','No',5.0,'Male'),(2,28,'Any','Any','Yes',5.0,'Male')
+/*!40000 ALTER TABLE `trip_preferences` ENABLE KEYS */;
+UNLOCK TABLES;
 --
 -- Table structure for table `user`
 --
