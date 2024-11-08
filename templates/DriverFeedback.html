@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Driver Feedback</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1D3124;
+            color: #000;
+        }
+        .navbar {
+            background-color: #f6f4e8;
+            border-color: black;
+            font-size: large;
+            font-weight: 500;
+        }
+        .navbar-brand, .nav-link {
+            color: black !important;
+        }
+        .nav-link:hover {
+            color: black !important;
+            background-color: gray;
+            border-radius: 10px;
+        }
+        .navbar-nav {
+            margin: 0 auto;
+        }
+        .nav-item {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+        .form-container {
+            margin: 50px auto;
+            padding: 40px;
+            background-color: #f6f4e8;
+            border-radius: 10px;
+            max-width: 600px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-control {
+            background-color: white;
+            border-color: black;
+            border-radius: 20px;
+        }
+        .btn {
+            border-radius: 20px;
+            background-color: #151F1E;
+            color: white;
+            border-color: black;
+        }
+        .btn:active {
+            background-color: gray !important;
+            border-color: black !important;
+        }
+        .btn:hover {
+            background-color: gray;
+            border-color: black;
+        }
+        /* Star Rating Styles */
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .star {
+            font-size: 2rem;
+            color: #D3D3D3; /* Default greyed-out stars */
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .star.selected {
+            color: #FFD700; /* Yellow for selected stars */
+        }
+        .hidden {
+            display: none;
+        }
+        /* Message below stars */
+        .star-message {
+            text-align: center;
+            font-size: 1rem;
+            margin-top: 10px;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('driver_homepage') }}">UniRide</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('current_tripDriver') }}">Current Trip</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_triprequest') }}">Trip Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_profile') }}">Profile</a>
+                    </li>
+                    <!--<li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_savedaddresses') }}">Saved Addresses</a>
+                    </li>-->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_history') }}">History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_reportissue') }}">Report Issue</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('driver_feedback') }}">Feedback</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="form-container">
+            <h2 class="text-center mb-4">Submit Your Feedback</h2>
+            <form action="{{ url_for('driver_feedback') }}" method="POST">
+                <!-- Dropdown for selecting subject/topic -->
+                <div class="mb-4">
+                    <label for="subject" class="form-label">Choose a subject</label>
+                    <select id="subject" name="subject" class="form-control" required onchange="toggleOtherField()">
+                        <option value="">Select Subject</option>
+                        <option value="Trip Quality">Trip Quality</option>
+                        <option value="Rider Behaviour">Rider Behaviour</option>
+                        <option value="App Feedback">App Feedback</option>
+                        <option value="Safety">Safety</option>
+                        <option value="Pricing">Pricing</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+
+                <!-- Other subject textfield, hidden by default -->
+                <div class="mb-4 hidden" id="other-subject-div">
+                    <label for="other_subject" class="form-label">Please specify</label>
+                    <input type="text" id="other_subject" name="other_subject" class="form-control">
+                </div>
+
+                <!-- Star Rating Section -->
+                <div class="mb-4">
+                    <label class="form-label">Rate your experience</label>
+                    <div class="star-rating">
+                        <span class="star" data-value="1">&#9733;</span>
+                        <span class="star" data-value="2">&#9733;</span>
+                        <span class="star" data-value="3">&#9733;</span>
+                        <span class="star" data-value="4">&#9733;</span>
+                        <span class="star" data-value="5">&#9733;</span>
+                    </div>
+                    <input type="hidden" id="rating" name="rating" value="">
+                    <!-- Message to display selected star count -->
+                    <div class="star-message" id="starMessage">You have selected 0 stars</div>
+                </div>
+
+                <!-- Feedback description box -->
+                <div class="mb-4">
+                    <label for="feedback" class="form-label">Your Feedback</label>
+                    <textarea id="feedback" name="feedback" class="form-control" rows="5" required></textarea>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show/Hide 'Other' field based on selection
+        function toggleOtherField() {
+            const subject = document.getElementById("subject").value;
+            const otherDiv = document.getElementById("other-subject-div");
+            if (subject === "Others") {
+                otherDiv.classList.remove("hidden");
+            } else {
+                otherDiv.classList.add("hidden");
+            }
+        }
+
+        // Star rating functionality
+        const stars = document.querySelectorAll(".star");
+        const starMessage = document.getElementById("starMessage");
+        stars.forEach((star, index) => {
+            star.addEventListener("click", () => {
+                stars.forEach((s, i) => {
+                    if (i <= index) {
+                        s.classList.add("selected");
+                    } else {
+                        s.classList.remove("selected");
+                    }
+                });
+                document.getElementById("rating").value = index + 1;
+                starMessage.textContent = `You have selected ${index + 1} stars`;
+            });
+        });
+
+       // Show success message after form submission
+    {% if success_message %}
+    window.onload = function() {
+        alert("{{ success_message }}");
+    };
+    {% endif %}
+    </script>
+</body>
+</html>
