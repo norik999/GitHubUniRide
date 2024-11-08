@@ -464,7 +464,7 @@ CREATE TABLE `trip_preferences` (
 
 LOCK TABLES `trip_preferences` WRITE;
 /*!40000 ALTER TABLE `trip_preferences` DISABLE KEYS */;
-INSERT INTO `trip_preferences` VALUES (1,27,'Any','Any','No',5.0,'Male'),(2,28,'Any','Any','Yes',5.0,'Male')
+INSERT INTO `trip_preferences` VALUES (1,27,'Any','Any','No',5.0,'Male'),(2,28,'Any','Any','Yes',5.0,'Male');
 /*!40000 ALTER TABLE `trip_preferences` ENABLE KEYS */;
 UNLOCK TABLES;
 --
