@@ -719,10 +719,10 @@ def admin_trips():
     if not session.get("admin_loggedin"):
         flash("Access denied. Admins only.", "danger")
         return redirect(url_for("login"))
-    # Connect to MySQL
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Query to fetch trip details from the Trip table
+    # Updated query to fetch all trip details, with GROUP_CONCAT for driver car details
     cursor.execute('''
         SELECT 
             t.TripID, 
@@ -733,28 +733,36 @@ def admin_trips():
             t.To AS DropOffLocation, 
             t.NoOfPassengers, 
             t.Status AS TripStatus,
-            r.FullName AS RiderName,
+            CONCAT(GROUP_CONCAT(r.FullName SEPARATOR ', '), 
+                   IF(t.GuestCount > 0, CONCAT(' + ', t.GuestCount, ' Guest'), '')) AS RiderNames,  -- Append " + _ Guest" if GuestCount > 0
             d.FullName AS DriverName,
-            c.PlateNumber
+            GROUP_CONCAT(DISTINCT CONCAT_WS(', ', c.CarModel, c.CarColor, c.PlateNumber)) AS CarDetails
         FROM 
             trip t
-        JOIN 
-            rider r ON t.TripInitiatorID = r.RiderID  -- Join with User table for Rider info
         LEFT JOIN 
-            driver d ON t.DriverID = d.DriverID      -- Join with driver table for driver info
+            tripriders tr ON t.TripID = tr.TripID  -- Join tripriders to get each rider for the trip
         LEFT JOIN 
-            car c ON d.DriverID = c.DriverID         -- Join with Car table for vehicle info
+            rider r ON tr.RiderID = r.RiderID      -- Join with rider to get rider names
+        LEFT JOIN 
+            driver d ON t.DriverID = d.DriverID     -- Join with driver to get driver details
+        LEFT JOIN 
+            car c ON d.DriverID = c.DriverID        -- Join with car to get vehicle details
+        GROUP BY 
+            t.TripID, t.Date, t.PickUpTime, t.DropOffTime, t.From, t.To, t.NoOfPassengers, t.Status, d.FullName
     ''')
 
-    trips = cursor.fetchall()  # Get all rows
+    trips = cursor.fetchall()
     cursor.close()
 
-    # Pass the fetched trip data to the template
     return render_template('AdminTrips.html', trips=trips)
 
 
 @app.route('/admin-trips-search', methods=['GET'])
 def admin_trips_search():
+    if not session.get("admin_loggedin"):
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for("login"))
+
     search_by = request.args.get('searchBy')  # Column to search by
     search_value = request.args.get('searchValue')  # Value to search for
 
@@ -766,7 +774,7 @@ def admin_trips_search():
         'DropOffLocation': 't.To',
         'Date': 't.Date',
         'TripStatus': 't.Status',
-        'RiderName': 'u.FullName',
+        'RiderName': 'r.FullName',
         'DriverName': 'd.FullName'
     }
 
@@ -776,13 +784,14 @@ def admin_trips_search():
     else:
         return "Invalid search field", 400
 
-    # SQL query to search for the trip details
+    # SQL query to search for the trip details with rider and driver info
     query = f'''
         SELECT 
             t.TripID, 
-            u.FullName AS RiderName, 
+            CONCAT(GROUP_CONCAT(r.FullName SEPARATOR ', '), 
+                   IF(t.GuestCount > 0, CONCAT(' + ', t.GuestCount, ' Guest'), '')) AS RiderNames,
             d.FullName AS DriverName, 
-            c.PlateNumber, 
+            GROUP_CONCAT(DISTINCT CONCAT_WS(', ', c.CarModel, c.CarColor, c.PlateNumber)) AS CarDetails,
             t.From AS PickupLocation, 
             t.To AS DropOffLocation, 
             t.PickUpTime, 
@@ -791,10 +800,12 @@ def admin_trips_search():
             t.NoOfPassengers, 
             t.Status AS TripStatus
         FROM trip t
-        LEFT JOIN user u ON t.TripInitiatorID = u.UserID -- Join User table for Rider info
-        LEFT JOIN driver d ON t.DriverID = d.DriverID    -- Join driver table for driver info
-        LEFT JOIN car c ON d.DriverID = c.DriverID       -- Join Car table for vehicle info
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID       -- Join tripriders to get each rider for the trip
+        LEFT JOIN rider r ON tr.RiderID = r.RiderID           -- Join rider to get rider names
+        LEFT JOIN driver d ON t.DriverID = d.DriverID         -- Join driver to get driver names
+        LEFT JOIN car c ON d.DriverID = c.DriverID            -- Join car to get car details
         WHERE {db_column} LIKE %s
+        GROUP BY t.TripID, t.Date, t.PickUpTime, t.DropOffTime, t.From, t.To, t.NoOfPassengers, t.Status, d.FullName
     '''
 
     search_pattern = f"%{search_value}%"  # Use a pattern for partial matching
@@ -807,34 +818,6 @@ def admin_trips_search():
     # Render the template with the filtered trips
     return render_template('AdminTrips.html', trips=trips, searchBy=search_by, searchValue=search_value)
 
-@app.route('/force_complete/<int:trip_id>', methods=['POST'])
-def force_complete(trip_id):
-    # Connect to the database
-    conn = mysql.connection
-    cursor = conn.cursor()
-
-    # SQL Query to update the trip status to 'Completed'
-    update_query = """
-    UPDATE trip
-    SET Status = 'Completed'
-    WHERE TripID = %s AND Status = 'Ongoing'
-    """
-
-    try:
-        # Execute the update query
-        cursor.execute(update_query, (trip_id,))
-        conn.commit()
-
-        # Check if any row was updated
-        if cursor.rowcount > 0:
-            return jsonify({'success': True, 'message': 'Trip has been updated as completed'})
-        else:
-            return jsonify({'success': False, 'message': 'Fail to update trip status'})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'message': str(e)})
-    finally:
-        cursor.close()
 
 @app.route('/admin-report')
 def admin_report():
@@ -1054,19 +1037,21 @@ def close_case():
 
 @app.route('/get-trip-data', methods=['GET'])
 def get_trip_data():
+    userID = session.get('id')
     cursor = mysql.connection.cursor()
-    
-    # Modify query to count only rider-initiated trips
+
+    # Modify query to count both initiated and participated trips by the current user
     query = """
         SELECT MONTHNAME(Date) AS month, COUNT(*) AS trip_count
-        FROM trip
-        WHERE Date BETWEEN '2024-07-01' AND '2024-12-31'
-          AND TripInitiatorType = 'Rider'
-        GROUP BY MONTH(Date), month
-        ORDER BY MONTH(Date);
+        FROM trip t
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID
+        WHERE t.Date BETWEEN '2024-07-01' AND '2024-12-31'
+          AND (t.TripInitiatorID = %s OR tr.RiderID = (SELECT RiderID FROM rider WHERE UserID = %s))
+        GROUP BY MONTH(t.Date), month
+        ORDER BY MONTH(t.Date);
     """
     
-    cursor.execute(query)
+    cursor.execute(query, (userID, userID))
     results = cursor.fetchall()
 
     # Convert query result to a dictionary
@@ -1074,7 +1059,6 @@ def get_trip_data():
     
     cursor.close()
     return jsonify(trip_data)
-
 
 
 @app.route("/rider-homepage", methods=["GET", "POST"])
@@ -1117,38 +1101,46 @@ def rider_homepage():
     current_month = datetime.now().month
     current_year = datetime.now().year
 
-    # Query for total completed trips
+   # Query for total completed trips
     cursor.execute("""
         SELECT COUNT(*) AS total_completed 
-        FROM trip 
-        WHERE Status = 'Completed' AND TripInitiatorID = %s
-    """, (userID,))
+        FROM trip t
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID
+        WHERE t.Status = 'Completed' 
+          AND (t.TripInitiatorID = %s OR tr.RiderID = %s)
+    """, (userID, riderID))
     total_completed = cursor.fetchone()['total_completed']
 
     # Query for completed trips in the current month
     cursor.execute("""
         SELECT COUNT(*) AS completed_current_month 
-        FROM trip 
-        WHERE Status = 'Completed' 
-          AND MONTH(Date) = %s AND YEAR(Date) = %s
-          AND TripInitiatorID = %s
-    """, (current_month, current_year, userID))
+        FROM trip t
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID
+        WHERE t.Status = 'Completed' 
+          AND MONTH(t.Date) = %s 
+          AND YEAR(t.Date) = %s
+          AND (t.TripInitiatorID = %s OR tr.RiderID = %s)
+    """, (current_month, current_year, userID, riderID))
     completed_current_month = cursor.fetchone()['completed_current_month']
 
     # Query for upcoming trips
     cursor.execute("""
         SELECT COUNT(*) AS upcoming_trips 
-        FROM trip 
-        WHERE Status = 'Planned' AND TripInitiatorID = %s
-    """, (userID,))
+        FROM trip t
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID
+        WHERE t.Status = 'Planned' 
+          AND (t.TripInitiatorID = %s OR tr.RiderID = %s)
+    """, (userID, riderID))
     upcoming_trips = cursor.fetchone()['upcoming_trips']
 
     # Calculate total carbon savings across all trips
     cursor.execute("""
-        SELECT Distance, NoOfPassengers 
-        FROM trip 
-        WHERE TripInitiatorID = %s
-    """, (userID,))
+        SELECT t.Distance, t.NoOfPassengers 
+        FROM trip t
+        LEFT JOIN tripriders tr ON t.TripID = tr.TripID
+        WHERE t.Status = 'Completed' 
+          AND (t.TripInitiatorID = %s OR tr.RiderID = %s)
+    """, (userID, riderID))
     trips = cursor.fetchall()
 
     total_carbon_savings = 0.0  # Initialize total savings
@@ -1202,7 +1194,6 @@ def rider_homepage():
 @app.route("/rider-dashboard")
 def rider_dashboard():
     userID = session.get('id')
-
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
@@ -1219,9 +1210,11 @@ def rider_dashboard():
     cursor.execute('''
         SELECT trip.*, 
                IFNULL(driver.FullName, 'Searching for Driver') AS DriverName,
+               CONCAT(car.CarModel, ', ', car.CarColor, ', ', car.PlateNumber) AS CarDetails,
                1 AS is_initiator
         FROM trip 
         LEFT JOIN driver ON trip.DriverID = driver.DriverID
+        LEFT JOIN car ON driver.DriverID = car.DriverID
         WHERE trip.TripInitiatorID = %s AND trip.Status IN ('Planned', 'Ongoing')
         ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID,))
@@ -1236,11 +1229,13 @@ def rider_dashboard():
         cursor.execute('''
             SELECT trip.*, 
                    driver.FullName AS DriverName,
+                   CONCAT(car.CarModel, ', ', car.CarColor, ', ', car.PlateNumber) AS CarDetails,
                    (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
             FROM trip
             JOIN tripriders ON trip.TripID = tripriders.TripID
             LEFT JOIN driver ON trip.DriverID = driver.DriverID
+            LEFT JOIN car ON driver.DriverID = car.DriverID
             WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status IN ('Planned', 'Ongoing')
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id, tuple(initiated_trip_ids)))
@@ -1248,11 +1243,13 @@ def rider_dashboard():
         cursor.execute('''
             SELECT trip.*, 
                    driver.FullName AS DriverName,
+                   CONCAT(car.CarModel, ', ', car.CarColor, ', ', car.PlateNumber) AS CarDetails,
                    (SELECT COUNT(*) FROM tripriders WHERE tripriders.TripID = trip.TripID) AS current_passengers,
                    0 AS is_initiator
             FROM trip
             JOIN tripriders ON trip.TripID = tripriders.TripID
             LEFT JOIN driver ON trip.DriverID = driver.DriverID
+            LEFT JOIN car ON driver.DriverID = car.DriverID
             WHERE tripriders.RiderID = %s AND trip.Status IN ('Planned', 'Ongoing')
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id,))
@@ -1266,8 +1263,6 @@ def rider_dashboard():
     for trip in all_trips:
         trip['Date'] = datetime.strptime(str(trip['Date']), '%Y-%m-%d').strftime('%d/%m/%Y')
         trip['PickUpTime'] = (datetime.min + trip['PickUpTime']).time().strftime('%H:%M')
-        if trip['DropOffTime']:
-            trip['DropOffTime'] = (datetime.min + trip['DropOffTime']).time().strftime('%H:%M')
 
         # Add chat URL dynamically using trip ID
         trip['chat_url'] = url_for('rider_trip_chat', trip_id=trip['TripID'])
@@ -1275,9 +1270,6 @@ def rider_dashboard():
     cursor.close()
 
     return render_template("RiderDashboard.html", trips=all_trips)
-
-
-
 
 
 @app.route("/update_trip", methods=["POST"])
@@ -1332,17 +1324,7 @@ def rider_profile():
         WHERE u.UserID = %s
     """, (userID,))
     user = cursor.fetchone()
-
-    # Calculate the average rating for the rider
-    cursor.execute("""
-        SELECT AVG(Rating) as avg_rating 
-        FROM feedbackrating 
-        WHERE ToUserID = %s
-    """, (userID,))
-    avg_rating_result = cursor.fetchone()
-    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
     
-
     if request.method == "POST":
         phone = request.form.get("phone")
         picture = request.files.get("picture")
@@ -1372,7 +1354,7 @@ def rider_profile():
 
         return redirect(url_for("rider_profile"))
 
-    return render_template("RiderProfile.html", user=user, avg_rating=avg_rating)
+    return render_template("RiderProfile.html", user=user)
 
 # Helper function to calculate carbon savings
 def calculate_carbon_savings(distance):
@@ -1545,17 +1527,16 @@ def rider_history():
 
     return render_template("RiderHistory.html", trips=completed_trips)
 
-@app.route('/submit-review/<int:trip_id>', methods=['POST']) #rider rate driver
+@app.route('/submit-review/<int:trip_id>', methods=['POST']) # Rider rates driver
 def submit_review(trip_id):
     userID = session.get('id')  # Reviewer ID (FromUserID)
     rating = request.form.get('rating')
     review_text = request.form.get('review_text')
-    print(trip_id, userID, rating)
 
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # First, retrieve the DriverID for the trip, then get the corresponding UserID
+        # Retrieve DriverID for the trip and get corresponding UserID
         cursor.execute('''
             SELECT DriverID 
             FROM trip 
@@ -1566,7 +1547,7 @@ def submit_review(trip_id):
         if driver:
             driver_id = driver['DriverID']
 
-            # Now, get the UserID of the driver
+            # Get the UserID of the driver
             cursor.execute('''
                 SELECT UserID 
                 FROM driver 
@@ -1577,20 +1558,42 @@ def submit_review(trip_id):
             if driver_user:
                 to_user_id = driver_user['UserID']
 
-                # Insert the review and rating into the feedbackrating and feedbackcomment tables
+                # Insert the rating and review
                 cursor.execute('''
                     INSERT INTO feedbackrating (TripID, FromUserID, ToUserID, Rating)
                     VALUES (%s, %s, %s, %s)
                 ''', (trip_id, userID, to_user_id, rating))
                 feedback_id = cursor.lastrowid
 
-                # Insert the review text into the feedbackcomment table
+                # Insert the review text
                 cursor.execute('''
                     INSERT INTO feedbackcomment (FeedbackID, FeedbackComment)
                     VALUES (%s, %s)
                 ''', (feedback_id, review_text))
 
-                mysql.connection.commit()
+                # Recalculate and update the driver's average rating
+                cursor.execute('''
+                    SELECT AVG(Rating) AS average_rating, COUNT(*) AS rating_count
+                    FROM feedbackrating
+                    WHERE ToUserID = %s
+                ''', (to_user_id,))
+                rating_data = cursor.fetchone()
+
+                if rating_data:
+                    total_ratings = rating_data['rating_count']
+                    average_rating = float(rating_data['average_rating'])
+
+                    # Include the initial 5.0 in the average calculation
+                    updated_average = (average_rating * total_ratings + 5.0) / (total_ratings + 1)
+
+                    # Update the driver's average rating
+                    cursor.execute('''
+                        UPDATE driver
+                        SET Rating = %s
+                        WHERE DriverID = %s
+                    ''', (updated_average, driver_id))
+                    mysql.connection.commit()
+
                 flash("Review submitted successfully!", "success")
             else:
                 flash("Driver not found.", "danger")
@@ -2376,20 +2379,12 @@ def driver_profile():
 
     # Fetch the current user data
     cursor.execute("""
-        SELECT u.FullName, u.Phone, u.Email, u.Picture 
+        SELECT u.FullName, u.Phone, u.Email, u.Picture, d.Rating 
         FROM user u 
+        JOIN driver d ON u.UserID = d.UserID
         WHERE u.UserID = %s
     """, (user_id,))
     user = cursor.fetchone()
-
-    # Calculate the average rating for the driver
-    cursor.execute("""
-        SELECT AVG(Rating) as avg_rating 
-        FROM feedbackrating 
-        WHERE ToUserID = %s
-    """, (user_id,))
-    avg_rating_result = cursor.fetchone()
-    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
 
     # Fetch the most recent 5 reviews/ratings
     cursor.execute("""
@@ -2431,7 +2426,7 @@ def driver_profile():
 
         return redirect(url_for("driver_profile"))
 
-    return render_template("DriverProfile.html", user=user, avg_rating=avg_rating, reviews=reviews)
+    return render_template("DriverProfile.html", user=user, reviews=reviews)
 
 @app.route("/driver-savedaddresses")
 def driver_savedaddresses():
@@ -2512,19 +2507,41 @@ def submit_rating(trip_id):
         rider = cursor.fetchone()
 
         if rider:
-            # Now fetch the corresponding UserID for this RiderID
+            # Fetch the UserID for this RiderID
             cursor.execute('''
                 SELECT UserID FROM rider WHERE RiderID = %s
             ''', (rider_id,))
             rider_user = cursor.fetchone()
 
             if rider_user:
-                # Insert the rating for the rider by the driver using the UserID
+                # Insert the rating for the rider by the driver
                 cursor.execute('''
                     INSERT INTO feedbackrating (TripID, FromUserID, ToUserID, Rating)
                     VALUES (%s, %s, %s, %s)
                 ''', (trip_id, driver_id, rider_user['UserID'], rating))
-                mysql.connection.commit()
+                
+                # Recalculate and update the rider's average rating
+                cursor.execute('''
+                    SELECT AVG(Rating) AS average_rating, COUNT(*) AS rating_count
+                    FROM feedbackrating
+                    WHERE ToUserID = %s
+                ''', (rider_user['UserID'],))
+                rating_data = cursor.fetchone()
+
+                if rating_data:
+                    total_ratings = rating_data['rating_count']
+                    average_rating = float(rating_data['average_rating'])
+
+                    # Include the initial 5.0 in the average calculation
+                    updated_average = (average_rating * total_ratings + 5.0) / (total_ratings + 1)
+
+                    # Update the rider's average rating
+                    cursor.execute('''
+                        UPDATE rider
+                        SET Rating = %s
+                        WHERE RiderID = %s
+                    ''', (updated_average, rider_id))
+                    mysql.connection.commit()
                 flash("Rating submitted successfully!", "success")
             else:
                 flash("Rider user not found.", "danger")
@@ -2538,6 +2555,7 @@ def submit_rating(trip_id):
         cursor.close()
 
     return redirect(url_for('driver_history'))
+
 
 
 @app.route('/trip-riders/<int:trip_id>', methods=['GET'])
@@ -2877,6 +2895,25 @@ def rider_availabletrips():
 
     cursor.execute(query, params)
     available_trips = cursor.fetchall()
+
+    if request.method == "POST":
+        trip_id = request.form.get('trip_id')
+
+        try:
+            # Directly insert the rider into the TripRiders table
+            cursor.execute('''
+                INSERT INTO TripRiders (TripID, RiderID)
+                VALUES (%s, %s)
+            ''', (trip_id, rider_id))
+            mysql.connection.commit()
+            
+            flash('You have successfully joined the trip!', 'success')
+            return redirect(url_for("rider_dashboard"))
+        except Exception as e:
+            # Handle potential insertion errors (e.g., duplicate entry)
+            mysql.connection.rollback()
+            flash(f'Error joining the trip: {str(e)}', 'danger')
+
     cursor.close()
 
     return render_template("RiderAvailableTrips.html", trips=available_trips,
@@ -2927,4 +2964,3 @@ def driver_feedback():
 
 if __name__ == "__main__":
     app.run(debug = True)
-
