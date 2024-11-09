@@ -40,7 +40,7 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 mysql = MySQL(app)
 
 # Initialize and start the scheduler
-scheduler = BackgroundScheduler()
+# scheduler = BackgroundScheduler()
 # scheduler.start()
 # Function to update expired trips
 def update_expired_trips():
