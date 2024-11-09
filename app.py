@@ -36,7 +36,35 @@ app.config['MAIL_DEFAULT_SENDER'] = 'unirides327@gmail.com'
 mail = Mail(app)
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+
 mysql = MySQL(app)
+
+# Initialize and start the scheduler
+scheduler = BackgroundScheduler()
+scheduler.start()
+# Function to update expired trips
+def update_expired_trips():
+    with app.app_context():  # Ensure function runs within the application context
+        try:
+            cursor = mysql.connection.cursor()
+            current_datetime = datetime.now()
+
+            # Update trips where the date and pickup time have passed and status is still 'Planned'
+            cursor.execute('''
+                UPDATE trip
+                SET Status = 'Expired'
+                WHERE Status = 'Planned'
+                AND (Date < %s OR (Date = %s AND PickUpTime < %s))
+            ''', (current_datetime.date(), current_datetime.date(), current_datetime.time()))
+
+            mysql.connection.commit()  # Commit changes to the database
+            cursor.close()
+            print("Expired trips updated.")
+        except Exception as e:
+            print(f"Error updating expired trips: {e}")
+
+# Register the job immediately after initializing the app
+scheduler.add_job(id='update_expired_trips', func=update_expired_trips, trigger='interval', minutes=1)  # or minutes=1 for 1-minute intervals
 
 # Helper function to check file extension
 def allowed_file(filename):
@@ -858,10 +886,11 @@ def admin_report():
 # For report search
 @app.route('/admin_report_search', methods=['GET'])
 def admin_report_search():
+    # Retrieve search criteria from the request
     search_by = request.args.get('searchBy')
     search_value = request.args.get('searchValue')
 
-    # Prepare the SQL query based on the search criteria
+    # Only proceed if both search field and value are provided
     if search_by and search_value:
         search_fields = {
             'CaseID': 'ir.ReportID',
@@ -871,18 +900,21 @@ def admin_report_search():
             'Status': 'ir.ReportStatus'
         }
 
-        # Check if the selected search field is valid
+        # Ensure the search field is valid
         if search_by not in search_fields:
             return jsonify({'success': False, 'message': 'Invalid search field'}), 400
 
+        # SQL query for searching in issue reports
         query = f'''
             SELECT 
                 ir.ReportID AS CaseID,
                 u.FullName AS ReporterName,
+                ir.ReporterType AS Role,
                 ir.Reason,
                 ir.ReportDate AS Date,
                 ir.Description AS Details,
                 ir.ReportStatus AS Status,
+                ir.AdminResponse AS AdminResponse,
                 ir.TripID,
                 t.From AS PickupLocation,
                 t.To AS DropOffLocation
@@ -895,14 +927,15 @@ def admin_report_search():
             WHERE 
                 {search_fields[search_by]} LIKE %s
         '''
+
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute(query, (f'%{search_value}%',))
         reports = cursor.fetchall()
         cursor.close()
 
-        return render_template('AdminReport.html', reports=reports)
+        return render_template('AdminReport.html', reports=reports, searchBy=search_by, searchValue=search_value)
     else:
-        # If no search criteria is given, return all reports
+        # If no search criteria provided, return all reports
         return admin_report()
     
 @app.route('/update_case_status', methods=['POST'])
@@ -1215,7 +1248,7 @@ def rider_dashboard():
         FROM trip 
         LEFT JOIN driver ON trip.DriverID = driver.DriverID
         LEFT JOIN car ON driver.DriverID = car.DriverID
-        WHERE trip.TripInitiatorID = %s AND trip.Status IN ('Planned', 'Ongoing')
+        WHERE trip.TripInitiatorID = %s AND trip.Status IN ('Planned', 'Ongoing', 'Expired')
         ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID,))
 
@@ -1236,7 +1269,7 @@ def rider_dashboard():
             JOIN tripriders ON trip.TripID = tripriders.TripID
             LEFT JOIN driver ON trip.DriverID = driver.DriverID
             LEFT JOIN car ON driver.DriverID = car.DriverID
-            WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status IN ('Planned', 'Ongoing')
+            WHERE tripriders.RiderID = %s AND trip.TripID NOT IN %s AND trip.Status IN ('Planned', 'Ongoing', 'Expired')
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id, tuple(initiated_trip_ids)))
     else:
@@ -1250,7 +1283,7 @@ def rider_dashboard():
             JOIN tripriders ON trip.TripID = tripriders.TripID
             LEFT JOIN driver ON trip.DriverID = driver.DriverID
             LEFT JOIN car ON driver.DriverID = car.DriverID
-            WHERE tripriders.RiderID = %s AND trip.Status IN ('Planned', 'Ongoing')
+            WHERE tripriders.RiderID = %s AND trip.Status IN ('Planned', 'Ongoing', 'Expired')
             ORDER BY trip.Date DESC, trip.PickUpTime DESC
         ''', (rider_id,))
 
@@ -1301,6 +1334,54 @@ def update_trip():
             cursor.close()
 
         return redirect(url_for("rider_dashboard"))
+    
+@app.route('/leave_trip/<int:trip_id>', methods=['POST'])
+def leave_trip(trip_id):
+    userID = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Get RiderID for the current user
+    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+    rider = cursor.fetchone()
+
+    if not rider:
+        flash("Rider not found", "danger")
+        return redirect(url_for('rider_dashboard'))
+    
+    rider_id = rider['RiderID']
+
+    # Remove the rider from the tripriders table for the given trip ID
+    cursor.execute("DELETE FROM tripriders WHERE TripID = %s AND RiderID = %s", (trip_id, rider_id))
+    mysql.connection.commit()
+    cursor.close()
+    
+    flash("You have left the trip successfully.", "success")
+    return redirect(url_for('rider_dashboard'))
+
+@app.route('/delete_trip/<int:trip_id>', methods=['POST'])
+def delete_trip(trip_id):
+    userID = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check if the logged-in driver is the initiator of the trip
+    cursor.execute("SELECT TripInitiatorID FROM trip WHERE TripID = %s", (trip_id,))
+    trip = cursor.fetchone()
+
+    if not trip or trip['TripInitiatorID'] != userID:
+        cursor.close()
+        return jsonify({'success': False, 'message': "You do not have permission to delete this trip."})
+
+    try:
+        # Delete the trip from the database
+        cursor.execute("DELETE FROM trip WHERE TripID = %s", (trip_id,))
+        mysql.connection.commit()
+        return jsonify({'success': True, 'message': "Trip deleted successfully."})
+    except Exception as e:
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'message': f"Error deleting trip: {str(e)}"})
+    finally:
+        cursor.close()
+
 
 @app.route("/rider-profile", methods=["GET", "POST"])
 def rider_profile():
@@ -2049,7 +2130,7 @@ def driver_dashboard():
                (trip.TripInitiatorID = %s) AS is_initiator  -- Check if the driver is the trip initiator
         FROM trip 
         LEFT JOIN rider ON trip.TripInitiatorID = rider.RiderID 
-        WHERE trip.DriverID = %s AND trip.Status IN ('Planned', 'Ongoing')
+        WHERE trip.DriverID = %s AND trip.Status IN ('Planned', 'Ongoing', 'Expired')
         ORDER BY trip.Date DESC, trip.PickUpTime DESC
     ''', (userID, driver_id))
     
@@ -2964,3 +3045,4 @@ def driver_feedback():
 
 if __name__ == "__main__":
     app.run(debug = True)
+
