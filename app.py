@@ -7,7 +7,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired #new
 from datetime import datetime, time, timedelta
 from textblob import TextBlob #new
 from collections import defaultdict
-from flask_apscheduler import APScheduler
+# from flask_apscheduler import APScheduler
 import MySQLdb.cursors
 import re, os
 import time
@@ -41,32 +41,13 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 mysql = MySQL(app)
 
 # Initialize and start the scheduler
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
+# scheduler = APScheduler()
+# scheduler.init_app(app)
+# scheduler.start()
 # Function to update expired trips
-def update_expired_trips():
-    with app.app_context():  # Ensure function runs within the application context
-        try:
-            cursor = mysql.connection.cursor()
-            current_datetime = datetime.now()
 
-            # Update trips where the date and pickup time have passed and status is still 'Planned'
-            cursor.execute('''
-                UPDATE trip
-                SET Status = 'Expired'
-                WHERE Status = 'Planned'
-                AND (Date < %s OR (Date = %s AND PickUpTime < %s))
-            ''', (current_datetime.date(), current_datetime.date(), current_datetime.time()))
 
-            mysql.connection.commit()  # Commit changes to the database
-            cursor.close()
-            print("Expired trips updated.")
-        except Exception as e:
-            print(f"Error updating expired trips: {e}")
 
-# Register the job immediately after initializing the app
-scheduler.add_job(id='update_expired_trips', func=update_expired_trips, trigger='interval', minutes=1)  # or minutes=1 for 1-minute intervals
 
 # Helper function to check file extension
 def allowed_file(filename):
