@@ -397,7 +397,7 @@ CREATE TABLE `trip` (
   `To` varchar(100) NOT NULL,
   `NoOfPassengers` int NOT NULL,
   `GuestCount` int DEFAULT '0',
-  `Status` enum('Planned','Completed','Cancelled','Ongoing') NOT NULL DEFAULT 'Planned',
+  `Status` enum('Planned','Completed','Cancelled','Ongoing','Expired') NOT NULL DEFAULT 'Planned',
   `Fare` decimal(10,2) DEFAULT '0.00',
   `Distance` float DEFAULT NULL,
   `CarbonSavings` float DEFAULT NULL,
@@ -408,7 +408,6 @@ CREATE TABLE `trip` (
   CONSTRAINT `trip_ibfk_2` FOREIGN KEY (`TripInitiatorID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
 --
 -- Dumping data for table `trip`
 --
@@ -464,7 +463,7 @@ CREATE TABLE `trip_preferences` (
 
 LOCK TABLES `trip_preferences` WRITE;
 /*!40000 ALTER TABLE `trip_preferences` DISABLE KEYS */;
-INSERT INTO `trip_preferences` VALUES (1,27,'Any','Any','No',5.0,'Male'),(2,28,'Any','Any','Yes',5.0,'Male');
+INSERT INTO `trip_preferences` VALUES (1,27,'Any','Any','No',5.0,'Male'),(2,28,'Any','Any','Yes',5.0,'Male')
 /*!40000 ALTER TABLE `trip_preferences` ENABLE KEYS */;
 UNLOCK TABLES;
 --
