@@ -249,6 +249,8 @@
                                         <button class="btn btn-custom btn-sm" onclick="editTrip({{ trip.TripID }})">
                                             Update
                                         </button>
+                                    {% elif trip.is_initiator and trip.Status == 'Expired' %}
+                                        <button type="button" class="btn btn-danger btn-sm" data-trip-id="{{ trip.TripID }}" onclick="deleteExpiredTrip(this)">Delete Trip</button>
                                     {% endif %}
                                 </div>
                             </td>
@@ -291,6 +293,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary">Save changes</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteTrip()">Delete Trip</button>
                     </div>
                 </div>
             </form>
@@ -366,9 +369,9 @@
             document.getElementById('modalFrom').innerText = cells[1].innerText;
             document.getElementById('modalDestination').innerText = cells[2].innerText;
             document.getElementById('modalPickupTime').innerText = cells[3].innerText;
-            document.getElementById('modalDate').innerText = cells[5].innerText;
-            document.getElementById('modalPassengers').innerText = cells[6].innerText;
-            document.getElementById('modalStatus').innerText = cells[7].innerText;
+            document.getElementById('modalDate').innerText = cells[4].innerText;
+            document.getElementById('modalPassengers').innerText = cells[5].innerText;
+            document.getElementById('modalStatus').innerText = cells[6].innerText;
 
             // Show the modal
             const modal = new bootstrap.Modal(document.getElementById('tripDetailsModal'));
@@ -407,13 +410,63 @@
             document.getElementById('editFrom').value = cells[1].innerText;
             document.getElementById('editTo').value = cells[2].innerText;
             document.getElementById('editPickUpTime').value = formatTime(cells[3].innerText);
-            document.getElementById('editDate').value = formatDate(cells[5].innerText);
+            document.getElementById('editDate').value = formatDate(cells[4].innerText);
 
             // Show the modal
             const modal = new bootstrap.Modal(document.getElementById('tripEditModal'));
             modal.show();
         }
 
+        function deleteTrip() {
+            const tripId = document.getElementById('editTripId').value;
+
+            if (confirm("Are you sure you want to delete this trip? This action cannot be undone.")) {
+                fetch(`/delete_trip/${tripId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();  // Reload the page to reflect the updated list of trips
+                    } else {
+                        alert(data.message || "Failed to delete the trip.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error deleting trip:", error);
+                    alert("An error occurred while deleting the trip.");
+                });
+            }
+        }
+
+        function deleteExpiredTrip(button) {
+            const tripId = button.getAttribute('data-trip-id'); // Get the trip ID from the button's data attribute
+            if (confirm("Are you sure you want to delete this expired trip? This action cannot be undone.")) {
+                fetch(`/delete_trip/${tripId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Trip deleted successfully');
+                        location.reload(); // Reload the page to update the trip list
+                    } else {
+                        alert('Failed to delete trip.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting trip:', error);
+                    alert('An error occurred while deleting the trip.');
+                });
+            }
+        }
     </script>
 </body>
 

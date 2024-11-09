@@ -257,42 +257,48 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for report in reports %}
-                    <tr>
-                        <td>{{ report.CaseID }}</td>
-                        <td>{{ report.ReporterName }}</td>
-                        <td>{{ report.Role }}</td> <!-- Display the role of the reporter -->
-                        <td>{{ report.Reason }}</td>
-                        <td>{{ report.Date }}</td>
-                        <td>{{ report.Details }}</td>
-                        <td id="status-{{ report.CaseID }}">{{ report.Status }}</td>
-                        <td id="admin-response-{{ report.CaseID }}">{{ report.AdminResponse }}</td>
-                        <td>{{ report.TripID }}</td>
-                        <td>
-                            <div class="d-flex flex-column align-items-center gap-2">
-                                <!-- View Button -->
-                                <button class="btn btn-custom mb-2" 
-                                        onclick="viewCaseDetails('{{ report.CaseID }}')" 
-                                        {% if report.Status == 'Closed' %} 
-                                            disabled title="Case is closed and cannot be viewed" 
-                                        {% endif %}>
-                                    View
-                                </button>
-                                            
-                                <!-- Close Case Button -->
-                                <button class="btn btn-custom" 
-                                        id="close-btn-{{ report.CaseID }}" 
-                                        onclick="closeCaseModal('{{ report.CaseID }}')" 
-                                        {% if report.Status != 'Under Review' %} 
-                                            disabled title="You can only close cases that are 'Under Review'" 
-                                        {% endif %}>
-                                    Close Case
-                                </button>
-                            </div>
-                        </td>                                                                                     
-                    </tr>
-                    {% endfor %}
-                </tbody>
+                    {% if reports %}
+                        {% for report in reports %}
+                        <tr>
+                            <td>{{ report.CaseID }}</td>
+                            <td>{{ report.ReporterName }}</td>
+                            <td>{{ report.Role }}</td> <!-- Display the role of the reporter -->
+                            <td>{{ report.Reason }}</td>
+                            <td>{{ report.Date }}</td>
+                            <td>{{ report.Details }}</td>
+                            <td id="status-{{ report.CaseID }}">{{ report.Status }}</td>
+                            <td id="admin-response-{{ report.CaseID }}">{{ report.AdminResponse }}</td>
+                            <td>{{ report.TripID }}</td>
+                            <td>
+                                <div class="d-flex flex-column align-items-center gap-2">
+                                    <!-- View Button -->
+                                    <button class="btn btn-custom mb-2" 
+                                            onclick="viewCaseDetails('{{ report.CaseID }}')" 
+                                            {% if report.Status == 'Closed' %} 
+                                                disabled title="Case is closed and cannot be viewed" 
+                                            {% endif %}>
+                                        View
+                                    </button>
+                                                
+                                    <!-- Close Case Button -->
+                                    <button class="btn btn-custom" 
+                                            id="close-btn-{{ report.CaseID }}" 
+                                            onclick="closeCaseModal('{{ report.CaseID }}')" 
+                                            {% if report.Status != 'Under Review' %} 
+                                                disabled title="You can only close cases that are 'Under Review'" 
+                                            {% endif %}>
+                                        Close Case
+                                    </button>
+                                </div>
+                            </td>                                                                                     
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center">No reports found.</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
                 
             </table>
         </div>
