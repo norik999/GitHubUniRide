@@ -7,7 +7,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired #new
 from datetime import datetime, time, timedelta
 from textblob import TextBlob #new
 from collections import defaultdict
-from apscheduler.schedulers.background import BackgroundScheduler
+from flask_apscheduler import APScheduler
 import MySQLdb.cursors
 import re, os
 import time
@@ -41,7 +41,8 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 mysql = MySQL(app)
 
 # Initialize and start the scheduler
-scheduler = BackgroundScheduler()
+scheduler = APScheduler()
+scheduler.init_app(app)
 scheduler.start()
 # Function to update expired trips
 def update_expired_trips():
