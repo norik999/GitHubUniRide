@@ -7,7 +7,6 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired #new
 from datetime import datetime, time, timedelta
 from textblob import TextBlob #new
 from collections import defaultdict
-# from flask_apscheduler import APScheduler
 import MySQLdb.cursors
 import re, os
 import time
@@ -40,14 +39,26 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 mysql = MySQL(app)
 
-# Initialize and start the scheduler
-# scheduler = APScheduler()
-# scheduler.init_app(app)
-# scheduler.start()
-# Function to update expired trips
 
+def update_expired_trips():
+    with app.app_context():  # Ensure function runs within the application context
+        try:
+            cursor = mysql.connection.cursor()
+            current_datetime = datetime.now()
 
+            # Update trips where the date and pickup time have passed and status is still 'Planned'
+            cursor.execute('''
+                UPDATE trip
+                SET Status = 'Expired'
+                WHERE Status = 'Planned'
+                AND (Date < %s OR (Date = %s AND PickUpTime < %s))
+            ''', (current_datetime.date(), current_datetime.date(), current_datetime.time()))
 
+            mysql.connection.commit()  # Commit changes to the database
+            cursor.close()
+            print("Expired trips updated.")
+        except Exception as e:
+            print(f"Error updating expired trips: {e}")
 
 # Helper function to check file extension
 def allowed_file(filename):
@@ -548,6 +559,7 @@ def remove_domain(domain_id):
 
 @app.route('/admin-dashboard', methods=['GET'])
 def admin_dashboard():
+    update_expired_trips()
     if not session.get("admin_loggedin"):
         flash("Access denied. Admins only.", "danger")
         return redirect(url_for("login"))
@@ -1079,6 +1091,7 @@ def get_trip_data():
 
 @app.route("/rider-homepage", methods=["GET", "POST"])
 def rider_homepage():
+    update_expired_trips()
     userID = session.get('id')  # Get UserID from session
     show_modal = False
 
@@ -1209,6 +1222,7 @@ def rider_homepage():
 
 @app.route("/rider-dashboard")
 def rider_dashboard():
+    update_expired_trips()
     userID = session.get('id')
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -1975,6 +1989,7 @@ def rider_feedback():
 
 @app.route('/driver-homepage', methods=['GET', 'POST'])
 def driver_homepage():
+    update_expired_trips()
     userID = session.get('id')
     show_modal = False
 
@@ -2091,6 +2106,7 @@ def driver_homepage():
 
 @app.route("/driver-dashboard")
 def driver_dashboard():
+    update_expired_trips()
     userID = session.get('id')
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2232,8 +2248,10 @@ def driver_update_trip():
 
 @app.route("/driver-triprequest")
 def driver_triprequest():
-    # Get the current driver ID from the session or request (assuming it's stored in session)
-    user_id = session.get('id')  # Make sure to set this in your login logic
+    update_expired_trips()
+    
+    # Get the current driver ID from the session
+    user_id = session.get('id')
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
@@ -2243,8 +2261,13 @@ def driver_triprequest():
         flash("You are not logged in as a driver", "error")
         return redirect(url_for("login"))
 
-    # Query to fetch all trips that do not have an assigned driver and are Planned
-    cursor = mysql.connection.cursor()
+    # Fetch search parameters from request arguments
+    pickup_location = request.args.get('pickup_location', '').strip()
+    dropoff_location = request.args.get('dropoff_location', '').strip()
+    trip_date = request.args.get('trip_date')
+    trip_time = request.args.get('trip_time')
+
+    # Build the query dynamically based on the provided search criteria
     query = """
         SELECT 
             TripID AS trip_id,
@@ -2259,26 +2282,33 @@ def driver_triprequest():
         WHERE 
             DriverID IS NULL AND Status = 'Planned'
     """
-    cursor.execute(query)
+    filters = []
+    values = []
+
+    # Add search filters based on the criteria
+    if pickup_location:
+        filters.append("`From` LIKE %s")
+        values.append(f"%{pickup_location}%")
+    if dropoff_location:
+        filters.append("`To` LIKE %s")
+        values.append(f"%{dropoff_location}%")
+    if trip_date:
+        filters.append("Date = %s")
+        values.append(trip_date)
+    if trip_time:
+        filters.append("PickUpTime = %s")
+        values.append(trip_time)
+
+    # Append filters to query if there are any
+    if filters:
+        query += " AND " + " AND ".join(filters)
+
+    cursor.execute(query, values)
     trips = cursor.fetchall()
     cursor.close()
 
-    # Format the trips data into a list of dictionaries
-    trips_data = [
-        {
-            'trip_id': trip[0],
-            'pickup_location': trip[1],
-            'dropoff_location': trip[2],
-            'trip_time': trip[3],
-            'trip_date': trip[4],
-            'passenger_count': trip[5],
-            'fare': trip[6],
-        }
-        for trip in trips
-    ]
+    return render_template("DriverTripRequests.html", trips=trips)
 
-    # Render the template with the trips data
-    return render_template("DriverTripRequests.html", trips=trips_data)
 
 @app.route("/assign_driver/<int:trip_id>", methods=["POST"])
 def assign_driver(trip_id):
@@ -2871,6 +2901,7 @@ def current_tripDriver():
 
 @app.route("/rider-availabletrips", methods=["GET", "POST"])
 def rider_availabletrips():
+    update_expired_trips()
     user_id = session.get('id')
     if not user_id:
         flash('You are not logged in as a rider', 'danger')
@@ -3028,4 +3059,3 @@ def driver_feedback():
 
 if __name__ == "__main__":
     app.run(debug = True)
-
