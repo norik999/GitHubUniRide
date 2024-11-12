@@ -164,7 +164,7 @@
         <!-- "My Preferences" Header and Filters -->
         <!-- Filters Section with initial values from preferences -->
         <h4 class="text-left" style="color: #f6f4e8; margin-top: 20px;">Preferences</h4>
-        <form id="filterForm" method="POST" action="{{ url_for('rider_availabletrips') }}">
+        <form id="filterForm" method="GET" action="{{ url_for('rider_availabletrips') }}">
             <div class="row">
                 <div class="col-md-3">
                     <label for="genderPreference" style="color: #f6f4e8;">Passenger Gender Preference:</label>
@@ -204,9 +204,6 @@
                     <label for="driverRating" style="color: #f6f4e8;">Min Driver Rating:</label>
                     <input type="number" class="form-control" id="driverRating" name="driverRating" min="0" max="5" step="0.1"
                            value="{{ min_rating }}">
-                </div>
-                <div class="col-md-3 mt-4">
-                    <button type="submit" class="btn btn-primary">Apply Filters</button>
                 </div>
             </div>
         </form>
