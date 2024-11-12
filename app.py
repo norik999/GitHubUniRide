@@ -2997,7 +2997,7 @@ def rider_availabletrips():
         try:
             # Directly insert the rider into the TripRiders table
             cursor.execute('''
-                INSERT INTO TripRiders (TripID, RiderID)
+                INSERT INTO tripriders (TripID, RiderID)
                 VALUES (%s, %s)
             ''', (trip_id, rider_id))
             mysql.connection.commit()
