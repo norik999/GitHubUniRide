@@ -176,6 +176,7 @@
                     </li>
                 </ul>
             </div>
+            <span class="navbar-text ms-auto text-dark me-3">Welcome Driver, {{ driver_name }}</span>
         </div>
     </nav>
 
@@ -240,11 +241,11 @@
                             </td>
                             <td>
                                 <div>
-                                    {% if trip.Status != 'Ongoing' %}
+                                    {% if trip.Status == 'Planned' %}
                                         <button class="btn btn-custom btn-sm" onclick="startTrip({{ trip.TripID }})" style="margin-bottom: 5px;">
                                             Start Trip
                                         </button>
-                                    {% else %}
+                                    {% elif trip.Status == 'Ongoing' %}
                                         <span class="badge bg-warning text-dark">Ongoing</span>
                                     {% endif %}
                                     
@@ -336,7 +337,7 @@
                 <div class="modal-body">
                     <form id="rescheduleTripsForm" method="POST" action="{{ url_for('driver_recreate_trips') }}">
                         {% if completed_trips %}
-                            <p class="text-muted text-center">Select any completed trips to reschedule and choose a new date.</p>
+                            <p class="text-muted text-center">Select any completed trips to reschedule and choose a new date and time.</p>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
                                     <thead>
@@ -346,19 +347,23 @@
                                             <th scope="col">From</th>
                                             <th scope="col">To</th>
                                             <th scope="col">New Date</th>
+                                            <th scope="col">New Time</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for trip in completed_trips %}
                                             <tr>
                                                 <td class="text-center">
-                                                    <input type="checkbox" name="selected_trips" value="{{ trip.TripID }}" aria-label="Select trip">
+                                                    <input type="checkbox" name="selected_trips" value="{{ trip.TripID }}" aria-label="Select trip" onchange="toggleDateTimeInputs(this)">
                                                 </td>
                                                 <td>{{ trip.Date }}</td>
                                                 <td>{{ trip.From }}</td>
                                                 <td>{{ trip.To }}</td>
                                                 <td>
-                                                    <input type="date" name="new_date_{{ trip.TripID }}" class="form-control" min="{{ current_date }}" required>
+                                                    <input type="date" name="new_date_{{ trip.TripID }}" class="form-control" min="{{ current_date }}" disabled required>
+                                                </td>
+                                                <td>
+                                                    <input type="time" name="new_time_{{ trip.TripID }}" class="form-control" disabled required>
                                                 </td>
                                             </tr>
                                         {% endfor %}
@@ -529,6 +534,29 @@
                 });
             }
         }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            function toggleDateTimeInputs(checkbox) {
+                const row = checkbox.closest('tr');
+                const dateInput = row.querySelector('input[type="date"]');
+                const timeInput = row.querySelector('input[type="time"]');
+
+                if (checkbox.checked) {
+                    dateInput.disabled = false;
+                    timeInput.disabled = false;
+                } else {
+                    dateInput.disabled = true;
+                    timeInput.disabled = true;
+                }
+            }
+
+            // Attach the function to each checkbox
+            document.querySelectorAll('input[name="selected_trips"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    toggleDateTimeInputs(checkbox);
+                });
+            });
+        });
     </script>
 </body>
 

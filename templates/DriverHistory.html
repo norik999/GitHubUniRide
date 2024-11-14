@@ -131,6 +131,7 @@
                     </li>
                 </ul>
             </div>
+            <span class="navbar-text ms-auto text-dark me-3">Welcome Driver, {{ driver_name }}</span>
         </div>
     </nav>
 
@@ -181,19 +182,23 @@
                             <button class="btn btn-primary btn-sm" onclick="viewDetails('{{ trip.TripID }}')">View Details</button>
                         </td>
                         <td>
-                            <!-- Dropdown to Rate Riders -->
-                            <div class="rider-dropdown">
-                                <select class="form-select" id="riderSelect-{{ trip.TripID }}" onchange="handleRiderSelection(this, '{{ trip.TripID }}')">
-                                    <option value="">Select a Rider to Rate</option>
-                                    {% for rider in trip.riders %}
-                                        <option value="{{ rider.RiderID }}" {% if rider.has_rating != 0 %} disabled {% endif %}>
-                                            {{ rider.FullName }} {% if rider.has_rating != 0 %}(Rated) {% endif %}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                                <button class="btn btn-primary mt-2" id="rateButton-{{ trip.TripID }}" onclick="openRatingModal('{{ trip.TripID }}')" disabled>Rate Rider</button>
-                            </div>
-                        </td>                                                                 
+                            {% if trip.riders %}
+                                <!-- Dropdown to Rate Riders -->
+                                <div class="rider-dropdown">
+                                    <select class="form-select" id="riderSelect-{{ trip.TripID }}" onchange="handleRiderSelection(this, '{{ trip.TripID }}')">
+                                        <option value="">Select a Rider to Rate</option>
+                                        {% for rider in trip.riders %}
+                                            <option value="{{ rider.RiderID }}" {% if rider.has_rating != 0 %} disabled {% endif %}>
+                                                {{ rider.FullName }} {% if rider.has_rating != 0 %}(Rated) {% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button class="btn btn-primary mt-2" id="rateButton-{{ trip.TripID }}" onclick="openRatingModal('{{ trip.TripID }}')" disabled>Rate Rider</button>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No riders to rate</span>
+                            {% endif %}
+                        </td>                                                                                       
                     </tr>
                     {% endfor %}                    
                 </tbody>
