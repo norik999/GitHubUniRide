@@ -1253,6 +1253,8 @@ def rider_dashboard():
         ''', (userID,))
         last_trips = cursor.fetchall()
 
+    current_date = datetime.today().strftime('%Y-%m-%d')
+
     # Query trips where the rider is the initiator (excluding 'Completed' trips)
     cursor.execute('''
         SELECT trip.*, 
@@ -1317,7 +1319,7 @@ def rider_dashboard():
     cursor.close()
 
     # Pass `last_trips` to the template for modal display
-    return render_template("RiderDashboard.html", trips=all_trips, last_trips=last_trips)
+    return render_template("RiderDashboard.html", trips=all_trips, last_trips=last_trips, current_date=current_date)
 
 
 @app.route("/update_trip", methods=["POST"])
@@ -2139,12 +2141,12 @@ def driver_dashboard():
 
     driver_id = driver['DriverID']
     
-    # Query trips for the logged-in driver, but exclude 'Completed' trips
+    # Fetch trips excluding 'Completed' trips for active display
     cursor.execute('''
         SELECT trip.*, 
                IFNULL(rider.FullName, 'No Rider Assigned') AS RiderName,
                trip.GuestCount,
-               (trip.TripInitiatorID = %s) AS is_initiator  -- Check if the driver is the trip initiator
+               (trip.TripInitiatorID = %s) AS is_initiator  
         FROM trip 
         LEFT JOIN rider ON trip.TripInitiatorID = rider.RiderID 
         WHERE trip.DriverID = %s AND trip.Status IN ('Planned', 'Ongoing', 'Expired')
@@ -2153,9 +2155,22 @@ def driver_dashboard():
     
     trips = cursor.fetchall()
 
-    # Fetch the passenger names for all trips (including guests)
+    # Fetch completed trips for rescheduling (up to 5 recent trips)
+    cursor.execute('''
+        SELECT * FROM trip
+        WHERE TripInitiatorID = %s AND TripInitiatorType = 'Driver' AND Status = 'Completed'
+        ORDER BY Date DESC
+        LIMIT 5
+    ''', (userID,))
+    completed_trips = cursor.fetchall()
+
+    # Determine if the modal should be shown based on session variables
+    show_modal = False
+    if not session.get('trip_created_in_session') and completed_trips:
+        show_modal = True  # Show the modal if no trip has been created in this session
+
+    # Populate passenger names and format times
     for trip in trips:
-        # Fetch all riders for this trip from the TripRiders table
         cursor.execute('''
             SELECT rider.FullName
             FROM rider
@@ -2164,34 +2179,24 @@ def driver_dashboard():
         ''', (trip['TripID'],))
         passengers = cursor.fetchall()
 
-        # Combine passenger names into a single string
+        # Process passenger names
         passenger_names = [passenger['FullName'] for passenger in passengers]
-
-        if passenger_names:
-            trip['PassengerNames'] = ', '.join(passenger_names)
-        else:
-            trip['PassengerNames'] = 'No passengers'
-
-        # If there are guests, add the guest count to the display
+        trip['PassengerNames'] = ', '.join(passenger_names) if passenger_names else 'No passengers'
         if trip['GuestCount'] > 0:
             trip['PassengerNames'] += f" + {trip['GuestCount']} Guest(s)"
 
-        # Format the date to dd/mm/yyyy
+        # Format date and time
         trip['Date'] = datetime.strptime(str(trip['Date']), '%Y-%m-%d').strftime('%d/%m/%Y')
-
-        # Convert PickUpTime and DropOffTime (timedelta) to HH:mm format
-        pickup_time = (datetime.min + trip['PickUpTime']).time()  # Convert timedelta to time
-        trip['PickUpTime'] = pickup_time.strftime('%H:%M')  # Format to HH:mm
-
+        trip['PickUpTime'] = (datetime.min + trip['PickUpTime']).time().strftime('%H:%M')
         if trip['DropOffTime']:
-            dropoff_time = (datetime.min + trip['DropOffTime']).time()  # Convert timedelta to time
-            trip['DropOffTime'] = dropoff_time.strftime('%H:%M')  # Format to HH:mm
+            trip['DropOffTime'] = (datetime.min + trip['DropOffTime']).time().strftime('%H:%M')
 
+    # Set the current date for use in the template to limit rescheduling dates to today or later
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
     cursor.close()
 
-    return render_template("DriverDashboard.html", trips=trips)
-
-
+    return render_template("DriverDashboard.html", trips=trips, completed_trips=completed_trips, current_date=current_date, show_modal=show_modal)
 
 @app.route("/start_trip/<int:trip_id>", methods=["POST"])
 def start_trip(trip_id):
@@ -3098,12 +3103,26 @@ def rider_recreate_trips():
         if not selected_trips:
             flash('No trips selected to recreate', 'warning')
             return redirect(url_for("rider_dashboard"))
+        
+        today = datetime.today().date()
+
 
         for trip_id in selected_trips:
             cursor.execute("SELECT * FROM trip WHERE TripID = %s", (trip_id,))
             trip = cursor.fetchone()
             if trip:
-                new_date = trip['Date'] + timedelta(weeks=1)
+                # Retrieve the new date specified by the user for this trip
+                new_date_str = request.form.get(f'new_date_{trip_id}')
+                if not new_date_str:
+                    continue  # Skip if no new date is provided
+                
+                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+
+                if new_date < today:
+                    flash(f"Cannot reschedule trip {trip_id} to a past date.", "danger")
+                    continue  # Skip this trip and continue with others
+                
+                # Insert the new trip with the specified date
                 cursor.execute('''
                     INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, 
                                       NoOfPassengers, GuestCount, Status, Fare, Distance, CarbonSavings)
@@ -3111,12 +3130,13 @@ def rider_recreate_trips():
                 ''', (trip['TripInitiatorID'], trip['TripInitiatorType'], new_date, trip['PickUpTime'],
                       trip['From'], trip['To'], trip['NoOfPassengers'], trip['GuestCount'],
                       trip['Fare'], trip['Distance'], trip['CarbonSavings']))
+                
                 new_trip_id = cursor.lastrowid
                 cursor.execute('INSERT INTO tripriders (TripID, RiderID) VALUES (%s, %s)', (new_trip_id, riderID))
 
         mysql.connection.commit()
         session['trips_rescheduled'] = True
-        flash('Selected trips rescheduled for the following week successfully', 'success')
+        flash('Selected trips rescheduled successfully', 'success')
         return redirect(url_for("rider_dashboard"))
 
     except Exception as e:
@@ -3127,5 +3147,73 @@ def rider_recreate_trips():
     finally:
         cursor.close()
 
+
+@app.route("/driver_recreate_trips", methods=["POST"])
+def driver_recreate_trips():
+    userID = session.get('id')
+    if not userID:
+        flash('User not logged in!', 'danger')
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Fetch DriverID based on UserID
+        cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+        driver = cursor.fetchone()
+        if not driver:
+            flash('Driver not found!', 'danger')
+            return redirect(url_for('login'))
+
+        driverID = driver['DriverID']
+        selected_trips = request.form.getlist('selected_trips')
+        
+        if not selected_trips:
+            flash('No trips selected to reschedule', 'warning')
+            return redirect(url_for("driver_dashboard"))
+
+        # Get the current date for validation
+        current_date = datetime.now().date()
+
+        for trip_id in selected_trips:
+            # Fetch the trip and the new date
+            cursor.execute("SELECT * FROM trip WHERE TripID = %s", (trip_id,))
+            trip = cursor.fetchone()
+            new_date_str = request.form.get(f'new_date_{trip_id}')
+            
+            if trip and new_date_str:
+                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+                
+                # Check if the selected date is not earlier than today
+                if new_date < current_date:
+                    flash('Cannot reschedule to a past date.', 'danger')
+                    return redirect(url_for("driver_dashboard"))
+
+                # Insert new trip with updated date and status set to 'Planned'
+                cursor.execute('''
+                    INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, 
+                                      NoOfPassengers, GuestCount, Status, Fare, Distance, CarbonSavings)
+                    VALUES (%s, 'Driver', %s, %s, %s, NULL, %s, %s, %s, %s, 'Planned', %s, %s, %s)
+                ''', (trip['TripInitiatorID'], driverID, new_date, trip['PickUpTime'], trip['From'], trip['To'], 
+                      trip['NoOfPassengers'], trip['GuestCount'], trip['Fare'], trip['Distance'], trip['CarbonSavings']))
+                new_trip_id = cursor.lastrowid  # Get the new trip ID
+
+        mysql.connection.commit()
+        
+        # Set session variable to indicate a trip has been created in this session
+        session['trip_created_in_session'] = True
+        
+        flash('Selected trips rescheduled successfully', 'success')
+        return redirect(url_for("driver_dashboard"))
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error rescheduling trips: {str(e)}', 'danger')
+        return redirect(url_for("driver_dashboard"))
+
+    finally:
+        cursor.close()
+
 if __name__ == "__main__":
     app.run(debug = True)
+
