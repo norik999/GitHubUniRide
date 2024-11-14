@@ -1223,6 +1223,7 @@ def rider_homepage():
 
 @app.route("/rider-dashboard")
 def rider_dashboard():
+    update_expired_trips()
     userID = session.get('id')
     if not userID:
         flash("You are not logged in!", "error")
