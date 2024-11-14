@@ -129,7 +129,7 @@ CREATE TABLE `driver` (
 
 LOCK TABLES `driver` WRITE;
 /*!40000 ALTER TABLE `driver` DISABLE KEYS */;
-INSERT INTO `driver` VALUES (15,41,'Driver Mong',5.0);
+INSERT INTO `driver` VALUES (15,41,'Mong',5.0);
 /*!40000 ALTER TABLE `driver` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -374,7 +374,7 @@ CREATE TABLE `testimonials` (
 
 LOCK TABLES `testimonials` WRITE;
 /*!40000 ALTER TABLE `testimonials` DISABLE KEYS */;
-INSERT INTO `testimonials` VALUES (17,37,'Mong Wen Xiang','Rider',NULL,'Trip Quality','','Testing - the app sucks','2024-10-11 12:43:03',5),(18,37,'Mong Wen Xiang','Rider',NULL,'Driver Behaviour','','Driver is friendly','2024-10-11 12:43:32',5),(19,38,'Driver Mong','Driver',NULL,'Others','User Friendly','I love how user friendly this app is!','2024-10-11 13:08:00',4),(20,40,'Test Mong','Rider',NULL,'Others','Attentive','Driver is very attentive when driving','2024-10-14 14:00:02',5),(21,37,'Mong Wen Xiang','Rider',NULL,'Pricing','','Reasonably priced','2024-10-14 14:00:51',4);
+INSERT INTO `testimonials` VALUES (17,37,'Mong Wen Xiang','Rider',NULL,'Trip Quality','','Testing - the app sucks','2024-10-11 12:43:03',5),(18,37,'Mong Wen Xiang','Rider',NULL,'Driver Behaviour','','Driver is friendly','2024-10-11 12:43:32',5),(19,38,'Mong','Driver',NULL,'Others','User Friendly','I love how user friendly this app is!','2024-10-11 13:08:00',4),(20,40,'RMong','Rider',NULL,'Others','Attentive','Driver is very attentive when driving','2024-10-14 14:00:02',5),(21,37,'Mong Wen Xiang','Rider',NULL,'Pricing','','Reasonably priced','2024-10-14 14:00:51',4);
 /*!40000 ALTER TABLE `testimonials` ENABLE KEYS */;
 UNLOCK TABLES;
 
