@@ -40,6 +40,7 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 mysql = MySQL(app)
 
 
+
 def update_expired_trips():
     with app.app_context():  # Ensure function runs within the application context
         try:
@@ -1224,6 +1225,10 @@ def rider_homepage():
 def rider_dashboard():
     update_expired_trips()
     userID = session.get('id')
+    if not userID:
+        flash("You are not logged in!", "error")
+        return redirect(url_for("login"))
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
@@ -1235,6 +1240,18 @@ def rider_dashboard():
         return redirect(url_for("login"))
 
     rider_id = rider['RiderID']
+
+    if session.pop('trips_rescheduled', None):
+        last_trips = []
+    else:
+        # Fetch last 3 completed trips for modal prompt
+        cursor.execute('''
+            SELECT * FROM trip
+            WHERE TripInitiatorID = %s AND TripInitiatorType = 'Rider' AND Status = 'Completed'
+            ORDER BY Date DESC
+            LIMIT 5
+        ''', (userID,))
+        last_trips = cursor.fetchall()
 
     # Query trips where the rider is the initiator (excluding 'Completed' trips)
     cursor.execute('''
@@ -1299,7 +1316,8 @@ def rider_dashboard():
 
     cursor.close()
 
-    return render_template("RiderDashboard.html", trips=all_trips)
+    # Pass `last_trips` to the template for modal display
+    return render_template("RiderDashboard.html", trips=all_trips, last_trips=last_trips)
 
 
 @app.route("/update_trip", methods=["POST"])
@@ -3055,7 +3073,59 @@ def driver_feedback():
     return render_template('DriverFeedback.html', success_message=success_message)
 
 
+from datetime import timedelta
 
+from datetime import timedelta
+
+@app.route("/rider_recreate_trips", methods=["POST"])
+def rider_recreate_trips():
+    userID = session.get('id')
+    if not userID:
+        flash('User not logged in!', 'danger')
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+        rider = cursor.fetchone()
+        if not rider:
+            flash('Rider not found!', 'danger')
+            return redirect(url_for('login'))
+
+        riderID = rider['RiderID']
+        selected_trips = request.form.getlist('selected_trips')
+        if not selected_trips:
+            flash('No trips selected to recreate', 'warning')
+            return redirect(url_for("rider_dashboard"))
+
+        for trip_id in selected_trips:
+            cursor.execute("SELECT * FROM trip WHERE TripID = %s", (trip_id,))
+            trip = cursor.fetchone()
+            if trip:
+                new_date = trip['Date'] + timedelta(weeks=1)
+                cursor.execute('''
+                    INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, 
+                                      NoOfPassengers, GuestCount, Status, Fare, Distance, CarbonSavings)
+                    VALUES (%s, %s, NULL, %s, %s, NULL, %s, %s, %s, %s, 'Planned', %s, %s, %s)
+                ''', (trip['TripInitiatorID'], trip['TripInitiatorType'], new_date, trip['PickUpTime'],
+                      trip['From'], trip['To'], trip['NoOfPassengers'], trip['GuestCount'],
+                      trip['Fare'], trip['Distance'], trip['CarbonSavings']))
+                new_trip_id = cursor.lastrowid
+                cursor.execute('INSERT INTO tripriders (TripID, RiderID) VALUES (%s, %s)', (new_trip_id, riderID))
+
+        mysql.connection.commit()
+        session['trips_rescheduled'] = True
+        flash('Selected trips rescheduled for the following week successfully', 'success')
+        return redirect(url_for("rider_dashboard"))
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'Error rescheduling trips: {str(e)}', 'danger')
+        return redirect(url_for("rider_dashboard"))
+        
+    finally:
+        cursor.close()
 
 if __name__ == "__main__":
     app.run(debug = True)
