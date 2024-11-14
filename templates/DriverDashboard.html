@@ -131,6 +131,9 @@
             text-align: center;
             margin-top: 45px;
         }
+        .modal-wider {
+            max-width: 90%; /* Adjust to desired width, e.g., 80% or 90% of the viewport width */
+        }
     </style>
 </head>
 
@@ -323,9 +326,68 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="rescheduleTripsModal" tabindex="-1" aria-labelledby="rescheduleTripsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-wider"> <!-- Added modal-wider class -->
+            <div class="modal-content" style="background-color: #f6f4e8; color: black;">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rescheduleTripsModalLabel">Reschedule Completed Trips</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="rescheduleTripsForm" method="POST" action="{{ url_for('driver_recreate_trips') }}">
+                        {% if completed_trips %}
+                            <p class="text-muted text-center">Select any completed trips to reschedule and choose a new date.</p>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead>
+                                        <tr class="table-secondary">
+                                            <th scope="col" class="text-center"></th>
+                                            <th scope="col">Date Completed</th>
+                                            <th scope="col">From</th>
+                                            <th scope="col">To</th>
+                                            <th scope="col">New Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for trip in completed_trips %}
+                                            <tr>
+                                                <td class="text-center">
+                                                    <input type="checkbox" name="selected_trips" value="{{ trip.TripID }}" aria-label="Select trip">
+                                                </td>
+                                                <td>{{ trip.Date }}</td>
+                                                <td>{{ trip.From }}</td>
+                                                <td>{{ trip.To }}</td>
+                                                <td>
+                                                    <input type="date" name="new_date_{{ trip.TripID }}" class="form-control" min="{{ current_date }}" required>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No completed trips available for rescheduling.</p>
+                        {% endif %}
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="rescheduleTripsForm" class="btn btn-primary">Confirm Rescheduling</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Display the reschedule modal only if show_modal is True
+            const showModal = {{ show_modal|tojson }};
+            if (showModal) {
+                const rescheduleTripsModal = new bootstrap.Modal(document.getElementById('rescheduleTripsModal'));
+                rescheduleTripsModal.show();
+            }
+        });
         function editTrip(button) {
             const row = button.closest('tr');
             const cells = row.querySelectorAll('td');
