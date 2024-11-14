@@ -311,8 +311,75 @@
         </div>
     </div>
 
+    <div class="modal fade" id="recreateTripsModal" tabindex="-1" aria-labelledby="recreateTripsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl"> <!-- Changed to modal-xl for extra width -->
+            <div class="modal-content" style="background-color: #f6f4e8; color: black; border-color: black; min-height: 70vh;">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="recreateTripsModalLabel">Reschedule Completed Trips</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="recreateTripsForm" method="POST" action="{{ url_for('rider_recreate_trips') }}">
+                        {% if last_trips %}
+                            <p class="text-muted" style="text-align: center">
+                                Select any completed trips that you would like to schedule again for the upcoming week.
+                            </p>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle" style="background-color: #f6f4e8; color: black;">
+                                    <thead>
+                                        <tr class="table-secondary">
+                                            <th scope="col" class="text-center"></th>
+                                            <th scope="col">Date Completed</th>
+                                            <th scope="col">From</th>
+                                            <th scope="col">To</th>
+                                            <th scope="col">Passengers</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for trip in last_trips %}
+                                            <tr>
+                                                <td class="text-center">
+                                                    <input type="checkbox" name="selected_trips" value="{{ trip.TripID }}" aria-label="Select trip">
+                                                </td>
+                                                <td>{{ trip.Date }}</td>
+                                                <td>{{ trip.From }}</td>
+                                                <td>{{ trip.To }}</td>
+                                                <td>{{ trip.NoOfPassengers }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No completed trips available to reschedule at this time.</p>
+                        {% endif %}
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-bs-dismiss="modal" 
+                            style="background-color: #1D3124; color: white; border: none;"
+                            onmouseover="this.style.backgroundColor='gray'" 
+                            onmouseout="this.style.backgroundColor='#1D3124'">Cancel</button>
+                    <button type="submit" form="recreateTripsForm" class="btn" 
+                            style="background-color: #1D3124; color: white; border: none;"
+                            onmouseover="this.style.backgroundColor='gray'" 
+                            onmouseout="this.style.backgroundColor='#1D3124'">Confirm Rescheduling</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+
+        // Open the Recreate Trips Modal if there are last_trips
+        document.addEventListener("DOMContentLoaded", function() {
+            if ({{ last_trips|length }} > 0) {
+                var recreateTripsModal = new bootstrap.Modal(document.getElementById('recreateTripsModal'));
+                recreateTripsModal.show();
+            }
+        });
         function editTrip(button) {
             const row = button.closest('tr');
             const cells = row.getElementsByTagName('td');
