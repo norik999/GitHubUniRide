@@ -259,6 +259,8 @@ def logout():
     session.pop("fullname", None)
     session.pop("id", None)
     session.pop("driver_id", None)
+    session.pop('trip_created_in_session', None)
+
     flash("You have been logged out.", "success")
     return redirect(url_for("login"))
 
@@ -1098,7 +1100,7 @@ def rider_homepage():
 
     # Fetch the RiderID associated with the UserID from the session
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1106,6 +1108,7 @@ def rider_homepage():
         return redirect(url_for('login'))  # Handle rider not found
 
     riderID = rider['RiderID']
+    rider_name = rider['FullName']
     #print(f"UserID: {userID}, RiderID: {riderID}")  # Debugging
 
     if request.method == 'POST':
@@ -1217,7 +1220,8 @@ def rider_homepage():
         carbon_savings=formatted_carbon_savings,
         now=datetime.now(),
         rider_gender=rider_details['Gender'],
-        rider_user_type=rider_details['UserType']
+        rider_user_type=rider_details['UserType'],
+        rider_name=rider_name
     )
 
 
@@ -1232,7 +1236,7 @@ def rider_dashboard():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1240,11 +1244,12 @@ def rider_dashboard():
         return redirect(url_for("login"))
 
     rider_id = rider['RiderID']
+    rider_name = rider['FullName']
 
     if session.pop('trips_rescheduled', None):
         last_trips = []
     else:
-        # Fetch last 3 completed trips for modal prompt
+        # Fetch last 5 completed trips for modal prompt
         cursor.execute('''
             SELECT * FROM trip
             WHERE TripInitiatorID = %s AND TripInitiatorType = 'Rider' AND Status = 'Completed'
@@ -1319,7 +1324,7 @@ def rider_dashboard():
     cursor.close()
 
     # Pass `last_trips` to the template for modal display
-    return render_template("RiderDashboard.html", trips=all_trips, last_trips=last_trips, current_date=current_date)
+    return render_template("RiderDashboard.html", trips=all_trips, last_trips=last_trips, current_date=current_date,rider_name=rider_name)
 
 
 @app.route("/update_trip", methods=["POST"])
@@ -1406,8 +1411,9 @@ def rider_profile():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID from the session
-    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
+    rider_name = rider['FullName']
     
     if not rider:
         # Handle the case where the rider is not found
@@ -1452,7 +1458,7 @@ def rider_profile():
 
         return redirect(url_for("rider_profile"))
 
-    return render_template("RiderProfile.html", user=user)
+    return render_template("RiderProfile.html", user=user,rider_name=rider_name)
 
 # Helper function to calculate carbon savings
 def calculate_carbon_savings(distance):
@@ -1559,7 +1565,7 @@ def rider_history():
 
     try:
         # Fetch the RiderID associated with the UserID from the session
-        cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+        cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (userID,))
         rider = cursor.fetchone()
 
         if not rider:
@@ -1567,6 +1573,7 @@ def rider_history():
             return redirect(url_for("login"))
 
         rider_id = rider['RiderID']  # Use the fetched RiderID
+        rider_name = rider['FullName']
 
         # Fetch completed trips where the rider is the initiator
         query_initiated = '''
@@ -1623,7 +1630,7 @@ def rider_history():
     finally:
         cursor.close()
 
-    return render_template("RiderHistory.html", trips=completed_trips)
+    return render_template("RiderHistory.html", trips=completed_trips,rider_name=rider_name)
 
 @app.route('/submit-review/<int:trip_id>', methods=['POST']) # Rider rates driver
 def submit_review(trip_id):
@@ -1793,7 +1800,7 @@ def rider_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (user_id,))
     rider = cursor.fetchone()
 
     if not rider:
@@ -1801,6 +1808,7 @@ def rider_reportissue():
         return redirect(url_for("login"))  # Redirect to login or another appropriate route
 
     rider_id = rider['RiderID']  # Use the fetched RiderID
+    rider_name = rider['FullName']
 
     if request.method == "POST":
         # Get form data
@@ -1846,7 +1854,7 @@ def rider_reportissue():
 
     cursor.close()
 
-    return render_template("RiderReportIssue.html", trips=trips, reports=reports)
+    return render_template("RiderReportIssue.html", trips=trips, reports=reports,rider_name=rider_name )
 
 
 
@@ -1966,10 +1974,22 @@ def get_messages(trip_id):
 
 @app.route("/rider-feedback", methods=["GET", "POST"])
 def rider_feedback():
-    if request.method == "POST":
-        # Get the logged-in user's ID from the session
-        user_id = session.get('id')
+    if not session.get('loggedin'):
+        flash("Please login to submit feedback", 'danger')
+        return redirect(url_for('login'))
 
+    user_id = session['id']  # Correct session key for user id
+    full_name = session.get('fullname', 'Anonymous')  # Get the full name from session, default to 'Anonymous' if not available
+    account_type = session['role']  # Get the role from session
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Fetch the DriverID associated with the UserID
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (user_id,))
+    rider = cursor.fetchone()
+    rider_name = rider['FullName']
+
+    if request.method == "POST":
         # Fetch user details from the 'user' table
         cursor = mysql.connection.cursor()
         cursor.execute("SELECT FullName, AccountType, Picture FROM user WHERE UserID = %s", (user_id,))
@@ -2004,7 +2024,7 @@ def rider_feedback():
             return render_template("RiderFeedback.html")
         else:
             flash('User details not found. Please try again.', 'danger')
-    return render_template("RiderFeedback.html")
+    return render_template("RiderFeedback.html", rider_name=rider_name)
 
 
 @app.route('/driver-homepage', methods=['GET', 'POST'])
@@ -2015,7 +2035,7 @@ def driver_homepage():
 
     # Get the Driver ID for the current user
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2023,6 +2043,7 @@ def driver_homepage():
         return redirect(url_for("login"))
 
     driverID = driver['DriverID']
+    driver_name = driver['FullName']
 
     if request.method == 'POST':
         # Get form data with defaults
@@ -2119,7 +2140,8 @@ def driver_homepage():
         carbon_savings=formatted_carbon_savings,
         trip_counts=trip_counts,
         driver_gender=driver_details['Gender'],
-        driver_user_type=driver_details['UserType']
+        driver_user_type=driver_details['UserType'],
+        driver_name=driver_name 
     )
 
 
@@ -2132,7 +2154,7 @@ def driver_dashboard():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (userID,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2140,6 +2162,7 @@ def driver_dashboard():
         return redirect(url_for("login"))
 
     driver_id = driver['DriverID']
+    driver_name = driver['FullName']
     
     # Fetch trips excluding 'Completed' trips for active display
     cursor.execute('''
@@ -2196,7 +2219,7 @@ def driver_dashboard():
     
     cursor.close()
 
-    return render_template("DriverDashboard.html", trips=trips, completed_trips=completed_trips, current_date=current_date, show_modal=show_modal)
+    return render_template("DriverDashboard.html", trips=trips, completed_trips=completed_trips, current_date=current_date, show_modal=show_modal, driver_name=driver_name)
 
 @app.route("/start_trip/<int:trip_id>", methods=["POST"])
 def start_trip(trip_id):
@@ -2277,7 +2300,7 @@ def driver_triprequest():
     user_id = session.get('id')
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2289,6 +2312,7 @@ def driver_triprequest():
     dropoff_location = request.args.get('dropoff_location', '').strip()
     trip_date = request.args.get('trip_date')
     trip_time = request.args.get('trip_time')
+    driver_name = driver['FullName']
 
     # Build the query dynamically based on the provided search criteria
     query = """
@@ -2330,7 +2354,7 @@ def driver_triprequest():
     trips = cursor.fetchall()
     cursor.close()
 
-    return render_template("DriverTripRequests.html", trips=trips)
+    return render_template("DriverTripRequests.html", trips=trips,driver_name=driver_name)
 
 
 @app.route("/assign_driver/<int:trip_id>", methods=["POST"])
@@ -2485,7 +2509,7 @@ def driver_profile():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID from the session
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2493,6 +2517,7 @@ def driver_profile():
         return redirect(url_for('homepage'))  # or another route as needed
 
     driver_id = driver["DriverID"]
+    driver_name = driver['FullName']
 
     # Fetch the current user data
     cursor.execute("""
@@ -2543,7 +2568,7 @@ def driver_profile():
 
         return redirect(url_for("driver_profile"))
 
-    return render_template("DriverProfile.html", user=user, reviews=reviews)
+    return render_template("DriverProfile.html", user=user, reviews=reviews,driver_name=driver_name)
 
 @app.route("/driver-savedaddresses")
 def driver_savedaddresses():
@@ -2556,7 +2581,7 @@ def driver_history():
 
     try:
         # Fetch the DriverID associated with the UserID
-        cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+        cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (userID,))
         driver = cursor.fetchone()
 
         if not driver:
@@ -2564,6 +2589,7 @@ def driver_history():
             return redirect(url_for("login"))
 
         driver_id = driver['DriverID']  # Use the fetched DriverID
+        driver_name = driver['FullName']
 
         # Fetch all completed trips for this driver
         query = '''
@@ -2605,7 +2631,7 @@ def driver_history():
     finally:
         cursor.close()
 
-    return render_template("DriverHistory.html", trips=completed_trips)
+    return render_template("DriverHistory.html", trips=completed_trips,driver_name=driver_name)
 
 
 @app.route('/submit-rating/<int:trip_id>', methods=['POST'])
@@ -2704,7 +2730,7 @@ def driver_reportissue():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch the DriverID associated with the UserID
-    cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
 
     if not driver:
@@ -2712,6 +2738,7 @@ def driver_reportissue():
         return redirect(url_for("login"))  # Redirect to login or another appropriate route
 
     driver_id = driver['DriverID']  # Use the fetched DriverID
+    driver_name = driver['FullName']
 
     if request.method == "POST":
         # Get form data
@@ -2752,7 +2779,7 @@ def driver_reportissue():
                       ORDER BY Date DESC''', (driver_id,))
     trips = cursor.fetchall()
 
-    return render_template("DriverReportIssue.html", trips=trips, reports=reports)
+    return render_template("DriverReportIssue.html", trips=trips, reports=reports, driver_name=driver_name)
 
 
 
@@ -2781,13 +2808,7 @@ def driver_createtrip():
         return redirect(url_for('login'))
 
     driverID = driver['DriverID']  # Use the fetched DriverID
-    cursor.execute("""
-        SELECT AVG(Rating) as avg_rating 
-        FROM feedbackrating 
-        WHERE ToUserID = %s
-    """, (userID,))
-    avg_rating_result = cursor.fetchone()
-    avg_rating = round(avg_rating_result['avg_rating'], 1) if avg_rating_result['avg_rating'] else 5.0
+    rating = driver['Rating']  # Use the fetched Rating
 
     cursor.execute("SELECT u.Gender, u.UserType FROM driver d JOIN user u ON d.UserID = u.UserID WHERE d.DriverID = %s", (driverID,))
     driver_details = cursor.fetchone()
@@ -2854,7 +2875,7 @@ def driver_createtrip():
             cursor.execute('''
                 INSERT INTO trip_preferences (TripID, AllowUserType, GenderPref, AllowPets, DriverRating, DriverGender)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (trip_id, user_type, passengers_gender, pets, avg_rating, driver_details['Gender']))
+            ''', (trip_id, user_type, passengers_gender, pets, rating, driver_details['Gender']))
             mysql.connection.commit()
 
             flash('Trip created successfully', 'success')
@@ -2933,9 +2954,10 @@ def rider_availabletrips():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # Fetch RiderID associated with the UserID
-    cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (user_id,))
+    cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (user_id,))
     rider = cursor.fetchone()
     rider_id = rider['RiderID']
+    rider_name = rider['FullName']
 
     cursor.execute("SELECT u.Gender, u.UserType FROM rider r JOIN user u ON r.UserID = u.UserID WHERE r.RiderID = %s", (rider_id,))
     rider_details = cursor.fetchone()
@@ -3036,7 +3058,7 @@ def rider_availabletrips():
 
     return render_template("RiderAvailableTrips.html", trips=available_trips,
                            gender_pref=gender_pref, user_type_pref=user_type_pref,
-                           pets_pref=pets_pref, driver_gender_pref=driver_gender_pref, min_rating=min_rating, rider_gender=rider_details['Gender'], rider_user_type=rider_details['UserType'])
+                           pets_pref=pets_pref, driver_gender_pref=driver_gender_pref, min_rating=min_rating, rider_name=rider_name, rider_gender=rider_details['Gender'], rider_user_type=rider_details['UserType'])
 
 
 @app.route('/driver_feedback', methods=['GET', 'POST'])
@@ -3048,6 +3070,13 @@ def driver_feedback():
     user_id = session['id']  # Correct session key for user id
     full_name = session.get('fullname', 'Anonymous')  # Get the full name from session, default to 'Anonymous' if not available
     account_type = session['role']  # Get the role from session
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Fetch the DriverID associated with the UserID
+    cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (user_id,))
+    driver = cursor.fetchone()
+    driver_name = driver['FullName']
     
     success_message = None
     
@@ -3075,12 +3104,7 @@ def driver_feedback():
             print(f"Error inserting feedback: {e}")
             flash("There was an error submitting your feedback. Please try again.", "danger")
     
-    return render_template('DriverFeedback.html', success_message=success_message)
-
-
-from datetime import timedelta
-
-from datetime import timedelta
+    return render_template('DriverFeedback.html', success_message=success_message,driver_name=driver_name)
 
 @app.route("/rider_recreate_trips", methods=["POST"])
 def rider_recreate_trips():
@@ -3111,23 +3135,30 @@ def rider_recreate_trips():
             cursor.execute("SELECT * FROM trip WHERE TripID = %s", (trip_id,))
             trip = cursor.fetchone()
             if trip:
-                # Retrieve the new date specified by the user for this trip
+                # Retrieve the new date and time specified by the user for this trip
                 new_date_str = request.form.get(f'new_date_{trip_id}')
-                if not new_date_str:
-                    continue  # Skip if no new date is provided
-                
-                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+                new_time_str = request.form.get(f'new_time_{trip_id}')
 
-                if new_date < today:
-                    flash(f"Cannot reschedule trip {trip_id} to a past date.", "danger")
-                    continue  # Skip this trip and continue with others
+                # Skip if date or time is not provided
+                if not new_date_str or not new_time_str:
+                    flash(f"Please provide both date and time for trip {trip_id}.", "warning")
+                    continue
+
+                # Convert date and time strings to datetime objects
+                new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+                new_time = datetime.strptime(new_time_str, '%H:%M').time()
+
+                # Check that the new date and time are not in the past
+                if new_date < today or (new_date == today and new_time < datetime.now().time()):
+                    flash(f"Cannot reschedule trip {trip_id} to a past date or time.", "danger")
+                    continue
                 
                 # Insert the new trip with the specified date
                 cursor.execute('''
                     INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, 
                                       NoOfPassengers, GuestCount, Status, Fare, Distance, CarbonSavings)
                     VALUES (%s, %s, NULL, %s, %s, NULL, %s, %s, %s, %s, 'Planned', %s, %s, %s)
-                ''', (trip['TripInitiatorID'], trip['TripInitiatorType'], new_date, trip['PickUpTime'],
+                ''', (trip['TripInitiatorID'], trip['TripInitiatorType'], new_date, new_time,
                       trip['From'], trip['To'], trip['NoOfPassengers'], trip['GuestCount'],
                       trip['Fare'], trip['Distance'], trip['CarbonSavings']))
                 
@@ -3159,14 +3190,18 @@ def driver_recreate_trips():
 
     try:
         # Fetch DriverID based on UserID
-        cursor.execute("SELECT DriverID FROM driver WHERE UserID = %s", (userID,))
+        cursor.execute("SELECT DriverID, Rating FROM driver WHERE UserID = %s", (userID,))
         driver = cursor.fetchone()
         if not driver:
             flash('Driver not found!', 'danger')
             return redirect(url_for('login'))
 
         driverID = driver['DriverID']
+        rating = driver['Rating']
         selected_trips = request.form.getlist('selected_trips')
+
+        cursor.execute("SELECT u.Gender FROM driver d JOIN user u ON d.UserID = u.UserID WHERE d.DriverID = %s", (driverID,))
+        driver_gender = cursor.fetchone()['Gender']
         
         if not selected_trips:
             flash('No trips selected to reschedule', 'warning')
@@ -3179,10 +3214,13 @@ def driver_recreate_trips():
             # Fetch the trip and the new date
             cursor.execute("SELECT * FROM trip WHERE TripID = %s", (trip_id,))
             trip = cursor.fetchone()
+            # Retrieve the new date and time specified by the user for this trip
             new_date_str = request.form.get(f'new_date_{trip_id}')
+            new_time_str = request.form.get(f'new_time_{trip_id}')
             
             if trip and new_date_str:
                 new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+                new_time = datetime.strptime(new_time_str, '%H:%M').time()
                 
                 # Check if the selected date is not earlier than today
                 if new_date < current_date:
@@ -3194,9 +3232,21 @@ def driver_recreate_trips():
                     INSERT INTO trip (TripInitiatorID, TripInitiatorType, DriverID, Date, PickUpTime, DropOffTime, `From`, `To`, 
                                       NoOfPassengers, GuestCount, Status, Fare, Distance, CarbonSavings)
                     VALUES (%s, 'Driver', %s, %s, %s, NULL, %s, %s, %s, %s, 'Planned', %s, %s, %s)
-                ''', (trip['TripInitiatorID'], driverID, new_date, trip['PickUpTime'], trip['From'], trip['To'], 
+                ''', (trip['TripInitiatorID'], driverID, new_date, new_time, trip['From'], trip['To'], 
                       trip['NoOfPassengers'], trip['GuestCount'], trip['Fare'], trip['Distance'], trip['CarbonSavings']))
                 new_trip_id = cursor.lastrowid  # Get the new trip ID
+                                #load driver preferences
+                cursor.execute("SELECT * FROM driverpreferences WHERE DriverID = %s", (driverID,))
+                preferences = cursor.fetchone()
+
+                user_type = preferences['UserType']
+                passenger_gender = preferences['PassengerGender']
+                allow_pets = preferences['Pets']
+
+                cursor.execute('''
+                    INSERT INTO trip_preferences (TripID, AllowUserType, GenderPref, AllowPets, DriverRating, DriverGender)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (new_trip_id, user_type, passenger_gender, allow_pets, rating, driver_gender))
 
         mysql.connection.commit()
         
@@ -3216,4 +3266,5 @@ def driver_recreate_trips():
 
 if __name__ == "__main__":
     app.run(debug = True)
+
 
