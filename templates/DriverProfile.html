@@ -122,6 +122,30 @@
        .review-content {
         text-align: left;
         }
+
+        .calendar-container {
+            margin-top: 30px;
+            background-color: #f6f4e8;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            width: 90%; /* Wider than the profile card */
+            max-width: 1200px; /* Ensures it doesn't stretch too much on large screens */
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+        }
+        #calendar {
+        width: 100%;
+        margin-top: 20px;
+        background-color: #f8f9fa; /* Slightly lighter gray for calendar background */
+        border-radius: 10px; /* Rounded edges */
+        padding: 10px; /* Space around calendar content */
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15); /* Subtle inner shadow */
+        }
+        .calendar-container h3 {
+            color: #1D3124;
+        }
         
     </style>
 </head>
@@ -185,12 +209,12 @@
         {% endwith %}
     
         <div class="profile-card">
-            <div class="profile-picture">
-                <img src="{{ url_for('static', filename='uploads/' + user['Picture']) if user['Picture'] else url_for('static', filename='default_profile_picture.png') }}" alt="Profile Picture" id="profileImg" style="max-width: 100%; height: auto;">
-                <input type="file" id="fileInput" name="picture" onchange="previewImage(event)">
-            </div>
-    
             <form class="profile-form " method="POST" enctype="multipart/form-data">
+                <div class="profile-picture">
+                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + user['Picture']) if user['Picture'] else url_for('static', filename='default_profile_picture.png') }}" 
+                         alt="Profile Picture" id="profileImg" style="max-width: 100%; height: auto;">
+                    <input type="file" id="fileInput" name="picture" onchange="previewImage(event)">
+                </div>
                 <div class="form-group mb-3">
                     <label for="fullNameInput">Full Name:</label>
                     <input type="text" class="form-control" id="fullNameInput" name="FullName" value="{{ user['FullName'] }}" disabled>
@@ -230,10 +254,45 @@
             </div>
         </div>
     </div>
+    <div class="calendar-container">
+        <h3>Manage Calendar</h3>
+        <form method="POST" action="{{ url_for('upload_calendar') }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="calendarInput" class="form-label">Upload .ics File</label>
+                <input type="file" name="calendar" id="calendarInput" class="form-control" accept=".ics" required>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Upload Calendar</button>
+        </form>
+        <div id="calendar"></div>
+    </div>
     
-
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const events = {{ events | tojson | safe }};
+            console.log("Events passed to FullCalendar:", events); // Debugging log
+
+            const calendarEl = document.getElementById("calendar");
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: "dayGridMonth",
+                events: events,
+                headerToolbar: {
+                    left: "prev,next today",
+                    center: "title",
+                    right: "dayGridMonth,timeGridWeek,timeGridDay"
+                },
+                timeZone: "local",
+                editable: false,
+                selectable: true,
+                height: "600px" // Set a fixed height
+            });
+
+            console.log("Rendering FullCalendar...");
+            calendar.render();
+        });
+
+
         function previewImage(event) {
             const input = event.target;
             const reader = new FileReader();

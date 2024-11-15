@@ -347,8 +347,11 @@
                 <div class="col-md-6">
                     <div class="testimonial-card">
                         <div class="testimonial-header" style="display: flex; align-items: center;">
-                            <img src="{{ testimonial['UserPhoto'] }}" alt="{{ testimonial['FullName'] }}'s photo" class="img-fluid rounded-circle" style="width: 50px; height: 50px; margin-right: 10px;">
-                            
+                            <img src="{{ url_for('static', filename='uploads/profile_pictures/' + testimonial['UserPhoto']) if testimonial['UserPhoto'] else url_for('static', filename='default_profile_picture.png') }}" 
+                            alt="{{ testimonial['FullName'] }}'s photo" 
+                            class="img-fluid rounded-circle" 
+                            style="width: 50px; height: 50px; margin-right: 10px;">
+                       
                             <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
                                 <h5 style="margin: 0;">{{ testimonial['FullName'] }}</h5>
                                 <small style="margin: 0;">{{ testimonial['AccountType'] }}</small>
