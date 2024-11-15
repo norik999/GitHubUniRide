@@ -7,21 +7,26 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired #new
 from datetime import datetime, time, timedelta
 from textblob import TextBlob #new
 from collections import defaultdict
+from ics import Calendar
 import MySQLdb.cursors
 import re, os
 import time
 
 
 
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app = Flask (__name__)
 app.config["SECRET_KEY"] = "secretkey"
-app.config["UPLOAD_FOLDER"] = "static/uploads"
+# Configure upload folder and allowed file types
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads/profile_pictures')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-app.config["MYSQL_HOST"] = "UniRide.mysql.pythonanywhere-services.com"
-app.config["MYSQL_USER"] = "UniRide"
-app.config["MYSQL_PASSWORD"] = "Noro151299$"
+app.config["MYSQL_HOST"] = "UniRide.mysql.pythonanywhere-services.com" 
+app.config["MYSQL_USER"] = "UniRide" 
+app.config["MYSQL_PASSWORD"] = "Noro151299$" 
 app.config["MYSQL_DB"] = "UniRide$uniride"
 #mysql = MySQL(app)
 
@@ -40,9 +45,7 @@ s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 mysql = MySQL(app)
 
 
-
 def update_expired_trips():
-    with app.app_context():  # Ensure function runs within the application context
         try:
             cursor = mysql.connection.cursor()
             current_datetime = datetime.now()
@@ -57,7 +60,6 @@ def update_expired_trips():
 
             mysql.connection.commit()  # Commit changes to the database
             cursor.close()
-            print("Expired trips updated.")
         except Exception as e:
             print(f"Error updating expired trips: {e}")
 
@@ -135,7 +137,6 @@ def email_verification():
 
 
 
-
 @app.route("/login")
 def login():
     return render_template("Login.html")
@@ -167,7 +168,7 @@ def landing_page():
             processed_testimonials.append({
                 'FullName': t[0] if t[0] else 'No Name',
                 'AccountType': t[1] if t[1] else 'No AccountType',
-                'UserPhoto': t[2] if t[2] else 'https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-1.webp',
+                'UserPhoto': t[2],
                 'FeedbackSubject': t[3] if t[3] else 'No Subject',
                 'OtherSubject': t[4] if t[4] else 'No Other Subject',
                 'FeedbackText': feedback_text,
@@ -1410,15 +1411,15 @@ def rider_profile():
     userID = session.get("id")  # Get UserID from session
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch the RiderID associated with the UserID from the session
+    # Fetch the RiderID and FullName associated with the UserID
     cursor.execute("SELECT RiderID, FullName FROM rider WHERE UserID = %s", (userID,))
     rider = cursor.fetchone()
-    rider_name = rider['FullName']
     
     if not rider:
-        # Handle the case where the rider is not found
         flash('Rider not found!', 'danger')
-        return redirect(url_for('login'))  # or another route as needed
+        return redirect(url_for('login'))
+
+    rider_name = rider['FullName']
 
     # Fetch the current user data along with the rating
     cursor.execute("""
@@ -1428,23 +1429,44 @@ def rider_profile():
         WHERE u.UserID = %s
     """, (userID,))
     user = cursor.fetchone()
+
+    # Fetch calendar events from the database
+    cursor.execute("SELECT EventName, StartDateTime, EndDateTime FROM user_calendar_events WHERE UserID = %s", (userID,))
+    events_data = cursor.fetchall()
+
+    # Format events for FullCalendar
+    events = [
+        {
+            "title": event["EventName"],
+            "start": event["StartDateTime"].isoformat(),  # Convert to ISO format
+            "end": event["EndDateTime"].isoformat() if event["EndDateTime"] else None,  # Convert to ISO format
+        }
+        for event in events_data
+    ]
+    # Debugging
+    print("Events for FullCalendar:", events)
     
     if request.method == "POST":
         phone = request.form.get("phone")
         picture = request.files.get("picture")
 
         try:
-            if picture:
-                # Save the new profile picture
+            # Handle profile picture upload if provided
+            if picture and allowed_file(picture.filename):
                 picture_filename = secure_filename(picture.filename)
                 picture_path = os.path.join(app.config["UPLOAD_FOLDER"], picture_filename)
                 picture.save(picture_path)
 
-                # Update both phone and picture in the database
-                cursor.execute("UPDATE user SET Phone = %s, Picture = %s WHERE UserID = %s", (phone, picture_filename, userID))
+                # Update the database with the new picture filename
+                cursor.execute("UPDATE user SET Phone = %s, Picture = %s WHERE UserID = %s", 
+                               (phone, picture_filename, userID))
+                flash(" picture updated!", "success")
+
             else:
-                # Just update the phone number if no picture is uploaded
-                cursor.execute("UPDATE user SET Phone = %s WHERE UserID = %s", (phone, userID))
+                # Only update phone number if no picture is uploaded
+                cursor.execute("UPDATE user SET Phone = %s WHERE UserID = %s", 
+                               (phone, userID))
+                flash("no picture updated!", "success")
 
             mysql.connection.commit()
             flash("Profile updated successfully!", "success")
@@ -1457,8 +1479,72 @@ def rider_profile():
             cursor.close()
 
         return redirect(url_for("rider_profile"))
+    return render_template("RiderProfile.html", user=user, rider_name=rider_name, events=events)
 
-    return render_template("RiderProfile.html", user=user,rider_name=rider_name)
+@app.route("/upload-calendar", methods=["POST"])
+def upload_calendar():
+    user_id = session.get("id")
+    if not user_id:
+        flash("User not logged in!", "danger")
+        return redirect(url_for("login"))
+
+    try:
+
+        # Fetch the user type
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SELECT AccountType FROM user WHERE UserID = %s", (user_id,))
+        user_data = cursor.fetchone()
+        if not user_data:
+            flash("User not found!", "danger")
+            return redirect(url_for("login"))
+        user_type = user_data["AccountType"]  # Assuming UserType is either 'Rider' or 'Driver'
+        # File upload validation
+        file = request.files.get("calendar")
+        if not file or not file.filename.endswith(".ics"):
+            flash("Invalid file type. Please upload a .ics file.", "danger")
+            return redirect(url_for(f"{user_type.lower()}_profile"))
+        # Save the uploaded .ics file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(filepath)
+
+        # Parse the .ics file
+        with open(filepath, "r") as f:
+            calendar = Calendar(f.read())
+
+        # Clear existing events for this user
+        cursor.execute("DELETE FROM user_calendar_events WHERE UserID = %s", (user_id,))
+
+        # Add events from the .ics file to the database
+        for event in calendar.events:
+            cursor.execute("""
+                INSERT INTO user_calendar_events (UserID, EventName, StartDateTime, EndDateTime, Description)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                user_id,
+                event.name,
+                event.begin.datetime,
+                event.end.datetime if event.end else event.begin.datetime,
+                event.description or "",
+            ))
+
+        mysql.connection.commit()
+        flash("Calendar uploaded and events added successfully!", "success")
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error processing .ics file: {e}", "danger")
+
+    finally:
+        cursor.close()
+        # Delete the .ics file after processing
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    
+
+    # Redirect based on user type
+    return redirect(url_for(f"{user_type.lower()}_profile"))
+
 
 # Helper function to calculate carbon savings
 def calculate_carbon_savings(distance):
@@ -2539,6 +2625,22 @@ def driver_profile():
     """, (user_id,))
     reviews = cursor.fetchall()
 
+    # Fetch calendar events from the database
+    cursor.execute("SELECT EventName, StartDateTime, EndDateTime FROM user_calendar_events WHERE UserID = %s", (user_id,))
+    events_data = cursor.fetchall()
+
+    # Format events for FullCalendar
+    events = [
+        {
+            "title": event["EventName"],
+            "start": event["StartDateTime"].isoformat(),  # Convert to ISO format
+            "end": event["EndDateTime"].isoformat() if event["EndDateTime"] else None,  # Convert to ISO format
+        }
+        for event in events_data
+    ]
+    # Debugging
+    print("Events for FullCalendar:", events)
+
     if request.method == "POST":
         phone = request.form.get("phone")
         picture = request.files.get("picture")
@@ -2568,7 +2670,7 @@ def driver_profile():
 
         return redirect(url_for("driver_profile"))
 
-    return render_template("DriverProfile.html", user=user, reviews=reviews,driver_name=driver_name)
+    return render_template("DriverProfile.html", user=user, reviews=reviews,driver_name=driver_name,events=events)
 
 @app.route("/driver-savedaddresses")
 def driver_savedaddresses():
@@ -3077,6 +3179,10 @@ def driver_feedback():
     cursor.execute("SELECT DriverID, FullName FROM driver WHERE UserID = %s", (user_id,))
     driver = cursor.fetchone()
     driver_name = driver['FullName']
+
+    cursor.execute("SELECT Picture FROM user WHERE UserID = %s", (user_id,))
+    user = cursor.fetchone()
+    driver_picture = user['Picture']
     
     success_message = None
     
@@ -3090,9 +3196,9 @@ def driver_feedback():
             # Insert feedback into the database
             cur = mysql.connection.cursor()
             cur.execute(
-                "INSERT INTO testimonials (UserID, FullName, AccountType, FeedbackSubject, OtherSubject, FeedbackText, FeedbackDate, Rating) "
-                "VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)",
-                (user_id, full_name, account_type, feedback_subject, other_subject, feedback_text, rating)
+                "INSERT INTO testimonials (UserID, FullName, AccountType, UserPhoto, FeedbackSubject, OtherSubject, FeedbackText, FeedbackDate, Rating) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)",
+                (user_id, full_name, account_type, driver_picture, feedback_subject, other_subject, feedback_text, rating)
             )
             mysql.connection.commit()
             cur.close()
@@ -3266,5 +3372,3 @@ def driver_recreate_trips():
 
 if __name__ == "__main__":
     app.run(debug = True)
-
-
