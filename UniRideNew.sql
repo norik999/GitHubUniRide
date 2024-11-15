@@ -496,6 +496,18 @@ CREATE TABLE `user` (
 ) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+
+CREATE TABLE user_calendar_events (
+    EventID INT AUTO_INCREMENT PRIMARY KEY,
+    UserID INT NOT NULL,
+    EventName VARCHAR(255),
+    StartDateTime DATETIME,
+    EndDateTime DATETIME,
+    Description TEXT,
+    FOREIGN KEY (UserID) REFERENCES user(UserID)
+);
+
+
 --
 -- Dumping data for table `user`
 --
