@@ -89,40 +89,41 @@
         function initMap() {
             var directionsService = new google.maps.DirectionsService();
             var directionsRenderer = new google.maps.DirectionsRenderer();
-            
-            // Initialize the map
             var map = new google.maps.Map(document.getElementById('map'), {
                 zoom: 7,
                 center: {lat: 1.3521, lng: 103.8198}  // Centered on Singapore as an example
             });
-    
-            // Add directions to the map
             directionsRenderer.setMap(map);
-    
-            // Add the traffic layer
+
             var trafficLayer = new google.maps.TrafficLayer();
             trafficLayer.setMap(map);
-    
+
             // Fetch 'From' and 'To' from the database
             var start = "{{ trip['From'] }}";
             var end = "{{ trip['To'] }}";
-    
-            // Request directions
+
             var request = {
                 origin: start,
                 destination: end,
                 travelMode: 'DRIVING'
             };
-    
-            // Render directions
+
             directionsService.route(request, function(result, status) {
                 if (status == 'OK') {
                     directionsRenderer.setDirections(result);
-                } else {
-                    console.error('Error fetching directions: ' + status);
                 }
             });
         }
+        window.onload = function() {
+            // Check if no trip exists (data-no-trip attribute)
+            var noTrip = document.body.getAttribute('data-no-trip') === 'true';
+            if (noTrip) {
+                alert("No ongoing trip found.");
+                window.location.href = "{{ url_for('rider_dashboard') }}";  // Redirect to rider dashboard
+            } else {
+                initMap();
+            }
+        };
     </script>
 </head>
 <body data-no-trip="{{ 'true' if trip is none else 'false' }}">
