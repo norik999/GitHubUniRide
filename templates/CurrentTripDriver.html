@@ -131,6 +131,9 @@
                 });
                 directionsRenderer.setMap(map);
 
+                var trafficLayer = new google.maps.TrafficLayer();
+                trafficLayer.setMap(map);
+
                 // Fetch 'From' and 'To' from the database
                 var start = "{{ trip['From'] }}";
                 var end = "{{ trip['To'] }}";
