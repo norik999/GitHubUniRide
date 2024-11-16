@@ -8,13 +8,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #1D3124;
+            background: linear-gradient(135deg, #1D3124, #3C5A35);
             height: 100vh;
         }
 
         .navbar {
             background-color: #f6f4e8;
-            border-color: black;
             font-size: large;
             font-weight: 500;
         }
@@ -52,50 +51,63 @@
         }
 
         .btn-custom {
-            background-color: #c8791e;
-            border-color: black;
-            color: #f6f4e8;
-            height: 30px;
-            width: 130px;
-            text-align: center;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-            display: flex;
+            background-color: #6c757d;
+            color: black;
+            font-weight: bold;
+            padding: 10px 20px;
             border-radius: 5px;
-            font-weight: normal;
+            border: none;
         }
 
         .btn-custom:hover {
-            background-color: gray;
-            color: #f6f4e8;
+            background-color: #495057;
+            color: white;
         }
 
+        .btn-custom:active {
+            background-color: #343a40 !important;
+            color: white !important;
+        }
+
+        .btn-remove {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+
+        .btn-remove:hover {
+            background-color: #c82333;
+            color: white;
+        }
+        
+        .btn-remove:active {
+            background-color: darkred !important;
+            color: white;
+        }
         .table-container {
             margin-top: 20px;
-            width: 100%;
+            overflow-x: auto; /* Add responsiveness */
         }
 
         .table {
             width: 100%;
-            text-align: left;
-            table-layout: auto;
+            border-collapse: collapse;
             background-color: #f6f4e8;
-            border-color: black;
-        }
-
-        .table th {
-            background-color: #f6f4e8;
-            color: black;
-            border-color: black;
+            border: 1px solid black;
         }
 
         .table th,
         .table td {
-            padding: 10px;
-            border-color: black;
+            padding: 12px;
+            border: 1px solid black;
             text-align: center;
-            vertical-align: middle;
+        }
+
+        .table th {
+            background-color: #f6f4e8;
+            font-weight: bold;
         }
     </style>
 
@@ -108,7 +120,7 @@
             if (domainValue.includes('@')) {
                 alert("The '@' symbol is not needed in the domain name. Please enter only the domain name, e.g., 'university.edu'.");
                 domainField.focus();
-                return false; // Prevent form submission
+                return false;
             }
 
             // Perform duplicate check with AJAX
@@ -143,7 +155,7 @@
 <body>
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">UniRide</a>          
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">UniRide</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -195,8 +207,6 @@
                 </div>
             </div>
         </form>
-        
-        
 
         <!-- Display Allowed Domains in a Table -->
         <div class="table-container">
@@ -217,7 +227,7 @@
                         <td>{{ domain.UserType }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('remove_domain', domain_id=domain.DomainID) }}">
-                                <button type="submit" class="btn btn-custom">Remove</button>
+                                <button type="submit" class="btn btn-remove">Remove</button>
                             </form>
                         </td>
                     </tr>
@@ -225,7 +235,6 @@
                 </tbody>
             </table>
         </div>
-        
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
