@@ -355,8 +355,8 @@ def register_post():
         send_verification_email(email, full_name)
 
         flash('Account Successfully Created. Please check your email to verify your account', 'success')
-        return render_template('Register.html', account_created=True)
-
+        return redirect(url_for('login'))
+            
     except Exception as e:
         mysql.connection.rollback()
         flash('Error creating account: {}'.format(str(e)), 'danger')
