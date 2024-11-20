@@ -24,10 +24,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Ensure the upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app.config["MYSQL_HOST"] = "UniRide.mysql.pythonanywhere-services.com" 
-app.config["MYSQL_USER"] = "UniRide" 
+app.config["MYSQL_HOST"] = "localhost" 
+app.config["MYSQL_USER"] = "root" 
 app.config["MYSQL_PASSWORD"] = "Noro151299$" 
-app.config["MYSQL_DB"] = "UniRide$uniride"
+app.config["MYSQL_DB"] = "uniride"
 #mysql = MySQL(app)
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'  
@@ -1110,8 +1110,6 @@ def rider_homepage():
 
     riderID = rider['RiderID']
     rider_name = rider['FullName']
-    #print(f"UserID: {userID}, RiderID: {riderID}")  # Debugging
-
     if request.method == 'POST':
         driver_gender = request.form.get("driverGender", "Any")
         pets = request.form.get("pets", "Any")
@@ -1442,10 +1440,7 @@ def rider_profile():
             "end": event["EndDateTime"].isoformat() if event["EndDateTime"] else None,  # Convert to ISO format
         }
         for event in events_data
-    ]
-    # Debugging
-    print("Events for FullCalendar:", events)
-    
+    ]    
     if request.method == "POST":
         phone = request.form.get("phone")
         picture = request.files.get("picture")
@@ -2638,8 +2633,6 @@ def driver_profile():
         }
         for event in events_data
     ]
-    # Debugging
-    print("Events for FullCalendar:", events)
 
     if request.method == "POST":
         phone = request.form.get("phone")
@@ -3076,11 +3069,11 @@ def rider_availabletrips():
     min_rating = request.form.get('driverRating', None)  # Rider can input manually
 
     # Override preferences with any form inputs (POST request) and update preferences dynamically
-    gender_pref = request.form.get('genderPreference', gender_pref)
-    user_type_pref = request.form.get('userTypePreference', user_type_pref)
-    pets_pref = request.form.get('petsPreference', pets_pref)
-    driver_gender_pref = request.form.get('driverGender', driver_gender_pref)
-    min_rating = float(request.form.get('driverRating', min_rating) or 0)
+    gender_pref = request.args.get('genderPreference', gender_pref)
+    user_type_pref = request.args.get('userTypePreference', user_type_pref)
+    pets_pref = request.args.get('petsPreference', pets_pref)
+    driver_gender_pref = request.args.get('driverGender', driver_gender_pref)
+    min_rating = float(request.args.get('driverRating', min_rating) or 0)
 
     # Save updated preferences
     if rider_preferences:
