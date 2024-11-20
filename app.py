@@ -24,10 +24,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Ensure the upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app.config["MYSQL_HOST"] = "localhost" 
-app.config["MYSQL_USER"] = "root" 
+app.config["MYSQL_HOST"] = "UniRide.mysql.pythonanywhere-services.com" 
+app.config["MYSQL_USER"] = "UniRide" 
 app.config["MYSQL_PASSWORD"] = "Noro151299$" 
-app.config["MYSQL_DB"] = "uniride"
+app.config["MYSQL_DB"] = "UniRide$uniride"
 #mysql = MySQL(app)
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'  
