@@ -243,7 +243,7 @@
                             <td>
                                 <div>
                                     {% if trip.Status == 'Planned' %}
-                                        <button class="btn btn-custom btn-sm" onclick="startTrip({{ trip.TripID }})" style="margin-bottom: 5px;">
+                                    <button class="btn btn-custom btn-sm" onclick="startTrip({{ trip.TripID }}, '{{ trip.Date }}')" style="margin-bottom: 5px;">
                                             Start Trip
                                         </button>
                                     {% elif trip.Status == 'Ongoing' %}
@@ -445,7 +445,20 @@
             const modal = new bootstrap.Modal(document.getElementById('tripDetailsModal'));
             modal.show();
         }
-        function startTrip(tripId) {
+        function startTrip(tripId, tripDate) {
+            const today = new Date().toISOString().split('T')[0];
+
+            // Convert tripDate from DD/MM/YYYY to YYYY-MM-DD
+            const [day, month, year] = tripDate.split('/'); // Split the DD/MM/YYYY format
+            const formattedTripDate = `${year}-${month}-${day}`; // Reformat to YYYY-MM-DD
+            console.log("Trip date (formatted):", formattedTripDate);
+            console.log("Today's date:", today); // Format: YYYY-MM-DD
+
+            if (formattedTripDate !== today) {
+                alert("You can only start trips scheduled for today.");
+                return;
+            }
+
             if (confirm("Are you sure you want to start this trip?")) {
                 fetch(`/start_trip/${tripId}`, {
                     method: "POST",
@@ -457,9 +470,9 @@
                 .then(data => {
                     if (data.success) {
                         alert(data.message);
-                        location.reload();  // Reload the page to reflect the updated trip status
+                        location.reload(); // Reload the page to reflect the updated trip status
                     } else {
-                        alert("Error: " + data.message);  // Display the error message
+                        alert("Error: " + data.message); // Display the error message
                     }
                 })
                 .catch(error => {
