@@ -10,7 +10,7 @@
 
     <style>
         body {
-            background-color: #1D3124;
+            background: linear-gradient(135deg, #1D3124, #3C5A35);
             color: #f6f4e8;
             height: 100vh;
             display: flex;
@@ -37,6 +37,11 @@
             border-color: black;
         }
 
+        .btn-primary:active {
+            background-color: gray !important;
+            border-color: black !important;
+        }
+
         .btn-primary:hover {
             background-color: gray;
             color: #f6f4e8;
@@ -56,6 +61,11 @@
 
         .trip-details, .preferences-section {
             flex: 1;
+        }
+
+        .btn-secondary {
+            background-color: #1D3124;
+            border-color: black;
         }
     </style>
 </head>
@@ -142,6 +152,7 @@
                 <button type="submit" class="btn btn-primary">Create Trip</button>
                 <button type="button" id="togglePreferences" class="btn btn-primary">Show Preferences</button>
                 <button type="button" class="btn btn-primary" onclick="window.location.href='/driver-dashboard'">Cancel</button>
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='/get-events'">Manage Timetable Trips</button>
             </div>
         </form>
     </div>

@@ -160,9 +160,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('driver_profile') }}">Profile</a>
                     </li>
-                    <!--<li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('driver_savedaddresses') }}">Saved Addresses</a>
-                    </li>-->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('driver_history') }}">History</a>
                     </li>
@@ -332,13 +329,13 @@
         <div class="modal-dialog modal-lg modal-wider"> <!-- Added modal-wider class -->
             <div class="modal-content" style="background-color: #f6f4e8; color: black;">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="rescheduleTripsModalLabel">Reschedule Completed Trips</h5>
+                    <h5 class="modal-title" id="rescheduleTripsModalLabel">Recreate Completed Trips</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="rescheduleTripsForm" method="POST" action="{{ url_for('driver_recreate_trips') }}">
                         {% if completed_trips %}
-                            <p class="text-muted text-center">Select any completed trips to reschedule and choose a new date and time.</p>
+                            <p class="text-muted text-center">Select any completed trips to recreate and choose a new date and time.</p>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
                                     <thead>

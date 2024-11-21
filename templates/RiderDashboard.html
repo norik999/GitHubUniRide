@@ -323,13 +323,13 @@
         <div class="modal-dialog modal-lg modal-wider">
             <div class="modal-content" style="background-color: #f6f4e8; color: black;">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="recreateTripsModalLabel">Reschedule Completed Trips</h5>
+                    <h5 class="modal-title" id="recreateTripsModalLabel">Recreate Completed Trips </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="recreateTripsForm" method="POST" action="{{ url_for('rider_recreate_trips') }}">
                         {% if last_trips %}
-                            <p class="text-muted text-center">Select completed trips to reschedule and choose a new date and time.</p>
+                            <p class="text-muted text-center">Select any completed trips to recreate and choose a new date and time.</p>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
                                     <thead>
