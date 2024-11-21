@@ -1110,6 +1110,8 @@ def rider_homepage():
 
     riderID = rider['RiderID']
     rider_name = rider['FullName']
+    #print(f"UserID: {userID}, RiderID: {riderID}")  # Debugging
+
     if request.method == 'POST':
         driver_gender = request.form.get("driverGender", "Any")
         pets = request.form.get("pets", "Any")
@@ -1579,35 +1581,6 @@ def rider_createtrip():
 
             # Calculate carbon savings for this trip
             carbon_savings = calculate_carbon_savings(distance)
-
-            """
-            # Preferences from the form
-            drivers_gender = request.form['driversGender']
-            passengers_gender = request.form['passengersGender']
-            pets = request.form['pets']
-            user_type = request.form['studentStaff']
-
-            # Update or insert rider preferences
-            if preferences:
-                if (preferences['DriverGender'] != drivers_gender or
-                    preferences['PassengerGender'] != passengers_gender or
-                    preferences['Pets'] != pets or
-                    preferences['UserType'] != user_type):
-                    cursor.execute('''
-                       UPDATE riderpreferences 
-                        SET DriverGender = %s, PassengerGender = %s, Pets = %s, UserType = %s 
-                       WHERE RiderID = %s
-                    ''', (drivers_gender, passengers_gender, pets, user_type, riderID))
-                    mysql.connection.commit()
-                    flash("Preferences updated.", "success")
-            else:
-                cursor.execute('''
-                    INSERT INTO riderpreferences (RiderID, DriverGender, PassengerGender, Pets, UserType)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-               ''', (riderID, drivers_gender, passengers_gender, pets, user_type))
-                mysql.connection.commit()
-                flash("Preferences saved.", "success")
-            """
 
             # Insert the new trip into the database
             cursor.execute('''
@@ -2633,6 +2606,8 @@ def driver_profile():
         }
         for event in events_data
     ]
+    # Debugging
+    print("Events for FullCalendar:", events)
 
     if request.method == "POST":
         phone = request.form.get("phone")
@@ -3069,11 +3044,11 @@ def rider_availabletrips():
     min_rating = request.form.get('driverRating', None)  # Rider can input manually
 
     # Override preferences with any form inputs (POST request) and update preferences dynamically
-    gender_pref = request.args.get('genderPreference', gender_pref)
-    user_type_pref = request.args.get('userTypePreference', user_type_pref)
-    pets_pref = request.args.get('petsPreference', pets_pref)
-    driver_gender_pref = request.args.get('driverGender', driver_gender_pref)
-    min_rating = float(request.args.get('driverRating', min_rating) or 0)
+    gender_pref = request.form.get('genderPreference', gender_pref)
+    user_type_pref = request.form.get('userTypePreference', user_type_pref)
+    pets_pref = request.form.get('petsPreference', pets_pref)
+    driver_gender_pref = request.form.get('driverGender', driver_gender_pref)
+    min_rating = float(request.form.get('driverRating', min_rating) or 0)
 
     # Save updated preferences
     if rider_preferences:
@@ -3362,6 +3337,177 @@ def driver_recreate_trips():
 
     finally:
         cursor.close()
+
+
+@app.route("/get-events", methods=["GET"])
+def get_events():
+    """Retrieve calendar events for the logged-in user after today."""
+    userID = session.get("id")
+    if not userID:
+        flash("User not logged in!", "danger")
+        return redirect(url_for("login"))
+
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Filter events where StartDateTime is after today
+        cursor.execute("""
+            SELECT EventName, StartDateTime, EndDateTime 
+            FROM user_calendar_events 
+            WHERE UserID = %s AND StartDateTime > %s
+        """, (userID, datetime.now()))
+        
+        events = cursor.fetchall()
+        cursor.close()
+
+        if not events:
+            flash("No upcoming calendar events found!", "info")
+
+        return render_template("SelectEvent.html", events=events)
+
+    except Exception as e:
+        flash(f"Error fetching events: {e}", "danger")
+
+@app.route("/create-trip", methods=["POST"])
+def create_trip():
+    """Create a trip 30 minutes before the user-selected event start time."""
+    userID = session.get('id')
+    if not userID:
+        flash("User not logged in!", "danger")
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Determine user role (Rider or Driver)
+        cursor.execute("SELECT AccountType FROM user WHERE UserID = %s", (userID,))
+        Account_Type = cursor.fetchone().get("AccountType")
+
+        # Get common form data
+        date = request.form['start_date']
+        start_time = request.form['start_time']
+        from_location = request.form['from']
+        to_location = request.form['to']
+        no_of_passengers = int(request.form['no_of_passengers'])
+        distance = float(request.form['distance']) if request.form.get('distance') else None
+        carbon_savings = calculate_carbon_savings(distance) if distance else None
+
+        # Calculate pick-up time 30 minutes before the event start time
+        event_datetime = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M:%S")
+        pick_up_time = (event_datetime - timedelta(minutes=30)).time()
+
+        if Account_Type == "Rider":
+            # Fetch RiderID
+            cursor.execute("SELECT RiderID FROM rider WHERE UserID = %s", (userID,))
+            rider = cursor.fetchone()
+            if not rider:
+                flash("Rider not found!", "danger")
+                return redirect(url_for("login"))
+            riderID = rider['RiderID']
+
+            # Insert trip initiated by Rider
+            cursor.execute('''
+                INSERT INTO trip (
+                    TripInitiatorID,
+                    TripInitiatorType,
+                    DriverID,
+                    Date,
+                    PickUpTime,
+                    `From`,
+                    `To`,
+                    NoOfPassengers,
+                    GuestCount,
+                    Status,
+                    Fare,
+                    Distance,
+                    CarbonSavings
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Planned', %s, %s, %s)
+            ''', (
+                userID,
+                'Rider',
+                None,  # Rider trips may not have a DriverID
+                date,
+                pick_up_time,
+                from_location,
+                to_location,
+                no_of_passengers,
+                no_of_passengers - 1,
+                0.0,  # Fare initially set to 0.0
+                distance,
+                carbon_savings
+            ))
+
+            trip_id = cursor.lastrowid
+            cursor.execute('INSERT INTO tripriders (TripID, RiderID) VALUES (%s, %s)', (trip_id, riderID))
+
+        elif Account_Type == "Driver":
+            # Fetch the DriverID and Rating associated with the UserID from the session
+            cursor.execute("SELECT DriverID, Rating FROM driver WHERE UserID = %s", (userID,))
+            driver = cursor.fetchone()
+            driverID = driver['DriverID']  # Use the fetched DriverID
+            rating = driver['Rating']  # Use the fetched Rating
+
+            cursor.execute("SELECT u.Gender FROM driver d JOIN user u ON d.UserID = u.UserID WHERE d.DriverID = %s", (driverID,))
+            driver_gender = cursor.fetchone()['Gender']
+
+            # Insert trip initiated by Driver
+            cursor.execute('''
+                INSERT INTO trip (
+                    TripInitiatorID,
+                    TripInitiatorType,
+                    DriverID,
+                    Date,
+                    PickUpTime,
+                    `From`,
+                    `To`,
+                    NoOfPassengers,
+                    GuestCount,
+                    Status,
+                    Fare,
+                    Distance,
+                    CarbonSavings
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 0, 'Planned', %s, %s, %s)
+            ''', (
+                userID,
+                'Driver',
+                driverID,
+                date,
+                pick_up_time,
+                from_location,
+                to_location,
+                no_of_passengers,
+                0.0,  # Fare initially set to 0.0
+                distance,
+                carbon_savings
+            ))
+            new_trip_id = cursor.lastrowid  # Get the new trip ID
+            cursor.execute("SELECT * FROM driverpreferences WHERE DriverID = %s", (driverID,))
+            preferences = cursor.fetchone()
+
+            user_type = preferences['UserType']
+            passenger_gender = preferences['PassengerGender']
+            allow_pets = preferences['Pets']
+
+            cursor.execute('''
+                INSERT INTO trip_preferences (TripID, AllowUserType, GenderPref, AllowPets, DriverRating, DriverGender)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (new_trip_id, user_type, passenger_gender, allow_pets, rating, driver_gender))
+
+        mysql.connection.commit()
+        flash("Trip created successfully!", "success")
+        return redirect(url_for(f"{Account_Type.lower()}_dashboard"))
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error creating trip: {e}", "danger")
+        return redirect(url_for(f"{Account_Type.lower()}_dashboard"))
+
+    finally:
+        cursor.close()
+
+
 
 if __name__ == "__main__":
     app.run(debug = True)
